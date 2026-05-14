@@ -26,17 +26,13 @@ jobs:
           npm install --save react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install --legacy-peer-deps
 
-      - name: Manual Android Structure (Anti-Error)
+      - name: Manual Android Structure
         run: |
-          # إنشاء المجلدات يدوياً بدلاً من الاعتماد على init الفاشل
           mkdir -p android/app/src/main/assets
           mkdir -p android/gradle/wrapper
-          
-          # إنشاء ملفات Gradle الأساسية لكي لا ينهار البناء
           echo "rootProject.name = 'SeaChat'" > android/settings.gradle
           echo "include ':app'" >> android/settings.gradle
           
-          # بناء ملف build.gradle أساسي جداً للأندرويد
           cat <<EOF > android/build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -45,25 +41,31 @@ jobs:
           allprojects { repositories { google(); mavenCentral() } }
           EOF
 
-          # ضبط مفاتيح الأندرويد
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          
-          # تحميل Gradle المستقر 8.10 يدوياً
           gradle wrapper --gradle-version 8.10 --project-dir android
           chmod +x android/gradlew
 
-      - name: Bundle Your Real Code (The Heart)
+      - name: Bundle Your Code
         run: |
-          # ربط ملفاتك الحقيقية (index.js) بالـ APK
           npx react-native bundle \
             --platform android \
             --dev false \
             --entry-file index.js \
             --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res || echo "Warning: Bundle generated with non-critical issues"
+            --assets-dest android/app/src/main/res
 
-      - name: Final Assemble
+      - name: Build APK
         working-directory: android
         run: |
-          # تشغيل البناء النهائي
-          ./gradlew assembleDebug --no-daemon || echo "Retrying build..."
+          # تنظيف وبناء من جديد
+          ./gradlew clean
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK (The Fix)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-App
+          # هذا هو المسار الصحيح الذي سيبحث فيه السيرفر عن الملف
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
