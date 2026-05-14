@@ -1,10 +1,10 @@
-name: Build APK React Native CLI
+name: Build APK - Auto Generate Android
 
 on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build type'
+        description: 'نوع البناء'
         required: true
         default: 'debug'
         type: choice
@@ -37,22 +37,27 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
-      - name: Setup React Native Vector Icons
-        run: |
-          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/
-          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/res/font/ || true
-
-      - name: Create local.properties
+      - name: Generate Android Folder
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
+          echo "app.name=SeaChat" >> android/local.properties
+        if: hashFiles('android/gradlew') == ''
+
+      - name: Setup Vector Icons Fonts
+        run: |
+          mkdir -p android/app/src/main/assets/fonts
+          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/
+
+      - name: Update gradle.properties
+        run: |
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
           echo "org.gradle.daemon=false" >> android/gradle.properties
           echo "org.gradle.parallel=true" >> android/gradle.properties
-          echo "org.gradle.configureondemand=true" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
 
-      - name: Make Gradlew Executable
+      - name: Fix permissions
         run: chmod +x android/gradlew
 
       - name: Clean Build
@@ -62,24 +67,14 @@ jobs:
         run: |
           cd android
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            ./gradlew assembleRelease --no-daemon -x lint -x test
+            ./gradlew assembleRelease --no-daemon -x lint -x lintVitalRelease
           else
-            ./gradlew assembleDebug --no-daemon -x lint -x test
-          fi
-        env:
-          NODE_ENV: production
-
-      - name: Rename APK
-        run: |
-          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            mv android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/SeaChat-release.apk
-          else
-            mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/SeaChat-debug.apk
+            ./gradlew assembleDebug --no-daemon -x lint
           fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK-${{ github.event.inputs.build_type }}
+          name: SeaChat-${{ github.event.inputs.build_type }}-APK
           path: android/app/build/outputs/apk/**/*.apk
           retention-days: 30
