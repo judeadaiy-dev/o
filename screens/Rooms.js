@@ -15,17 +15,17 @@ export default function RoomsScreen({ navigation }) {
     fetchOnlineCounts();
 
     const roomsChannel = supabase
-     .channel('rooms-changes')
-     .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, fetchRooms)
-     .subscribe();
+    .channel('rooms-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, fetchRooms)
+    .subscribe();
 
     const presenceChannel = supabase
-     .channel('online-users')
-     .on('presence', { event: 'sync' }, () => {
+    .channel('online-users')
+    .on('presence', { event: 'sync' }, () => {
         const state = presenceChannel.presenceState();
         updateOnlineCounts(state);
       })
-     .subscribe();
+    .subscribe();
 
     return () => {
       supabase.removeChannel(roomsChannel);
@@ -35,18 +35,17 @@ export default function RoomsScreen({ navigation }) {
 
   async function fetchRooms() {
     const { data } = await supabase
-     .from('rooms')
-     .select('*')
-     .order('created_at', { ascending: false });
+    .from('rooms')
+    .select('*')
+    .order('created_at', { ascending: false });
     setRooms(data || []);
     setFilteredRooms(data || []);
   }
 
   async function fetchOnlineCounts() {
-    // جلب عدد النشطين لكل غرفة
     const { data } = await supabase
-     .from('room_presence')
-     .select('room_id');
+    .from('room_presence')
+    .select('room_id');
 
     if (data) {
       const counts = {};
@@ -70,7 +69,6 @@ export default function RoomsScreen({ navigation }) {
     setOnlineCounts(counts);
   }
 
-  // فلترة البحث
   useEffect(() => {
     if (search.trim() === '') {
       setFilteredRooms(rooms);
@@ -111,6 +109,7 @@ export default function RoomsScreen({ navigation }) {
             </View>
             {isOwner && <Text style={styles.ownerBadge}>غرفتي</Text>}
           </View>
+        </View>
         <Icon name="chevron-forward" size={20} color="#64748B" />
       </TouchableOpacity>
     );
@@ -118,7 +117,6 @@ export default function RoomsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* الهيدر */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>الغرف</Text>
         <TouchableOpacity onPress={() => navigation.navigate('CreateRoom')}>
@@ -126,7 +124,6 @@ export default function RoomsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* شريط البحث */}
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#64748B" style={styles.searchIcon} />
         <TextInput
@@ -138,7 +135,6 @@ export default function RoomsScreen({ navigation }) {
         />
       </View>
 
-      {/* قائمة الغرف */}
       <FlatList
         data={filteredRooms}
         keyExtractor={(i) => i.id}
@@ -157,11 +153,11 @@ export default function RoomsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617', // slate-950
+    backgroundColor: '#020617',
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 56, // pt-14
+    paddingTop: 56,
     paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -175,7 +171,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.4)', // زجاجي
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
     marginHorizontal: 16,
     marginBottom: 16,
     paddingHorizontal: 16,
@@ -198,7 +194,7 @@ const styles = StyleSheet.create({
   roomCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.4)', // زجاجي
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
@@ -226,7 +222,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   roomDesc: {
-    color: '#94a3b8', // slate-400
+    color: '#94a3b8',
     fontSize: 14,
     marginTop: 4,
   },
@@ -245,14 +241,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#22c55e', // green-500
+    backgroundColor: '#22c55e',
   },
   onlineText: {
     color: '#22c55e',
     fontSize: 12,
   },
   ownerBadge: {
-    color: '#fbbf24', // amber-400
+    color: '#fbbf24',
     fontSize: 12,
     fontWeight: 'bold',
   },
