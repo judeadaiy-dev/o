@@ -78,4 +78,9 @@ export default function ChatRoomScreen({ route, navigation }) {
       
       <View className="flex-row items-center p-4 bg-slate-900">
         <TouchableOpacity onPress={sendImage} className="mr-3"><Ionicons name="image" size={28} color="#3B82F6" /></TouchableOpacity>
-        <TextInput value={text} on
+        <TextInput value={text} onChangeText={handleTyping} placeholder="اكتب رسالة..." placeholderTextColor="#64748b" className="flex-1 bg-slate-800 text-white p-3 rounded-full mr-3" />
+        <TouchableOpacity onPress={() => sendMessage(text)} className="bg-blue-600 p-3 rounded-full"><Ionicons name="send" size={20} color="white" /></TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+          }
