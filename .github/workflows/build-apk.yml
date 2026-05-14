@@ -8,113 +8,79 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 1. Checkout
+      - name: Checkout
         uses: actions/checkout@v4
       
-      - name: 2. Setup Node 20
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
           
-      - name: 3. Setup Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
-      - name: 4. Setup Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 5. Install Dependencies
+      - name: Install Dependencies
         run: |
-          echo "=== Installing NPM packages ==="
-          npm install --legacy-peer-deps || { echo "❌ NPM INSTALL FAILED"; exit 1; }
-          echo "✅ NPM install done"
+          echo "=== Installing deps ==="
+          npm install --legacy-peer-deps
+          npm install react-native@0.74.5 --save --legacy-peer-deps
+          echo "✅ Deps installed"
+          ls -la node_modules/react-native
 
-      - name: 6. Create app.json
+      - name: Create Required Files
         run: |
-          echo "=== Creating app.json ==="
-          echo '{
-            "name": "SeaChat",
-            "displayName": "SeaChat"
-          }' > app.json
-          cat app.json
-          echo "✅ app.json created"
+          echo "=== Creating index.js and app.json ==="
+          echo 'import {AppRegistry} from "react-native";import App from "./App";import {name as appName} from "./app.json";AppRegistry.registerComponent(appName, () => App);' > index.js
+          echo '{"name": "SeaChat","displayName": "SeaChat"}' > app.json
+          echo "✅ Files created"
 
-      - name: 7. Generate Android Folder
+      - name: Generate Android Project
         run: |
-          echo "=== Generating Android Folder ==="
-          if [ ! -d "android" ]; then
-            npx @react-native-community/cli android || { echo "❌ FAILED: cli android command failed"; echo "Check if app.json exists"; ls -la; exit 1; }
-          fi
-          
-          if [ ! -d "android" ]; then
-            echo "❌ FAILED: android folder still not found after cli command"
-            exit 1
-          fi
-          
-          if [ ! -f "android/gradlew" ]; then
-            echo "❌ FAILED: gradlew not found in android folder"
-            ls -la android/
-            exit 1
-          fi
-          
-          echo "✅ Android folder created successfully"
-          ls -la android/
+          echo "=== Generating android using react-native init ==="
+          npx react-native@0.74.5 init SeaChatTemp --skip-install --version 0.74.5 --directory SeaChatTemp
+          cp -r SeaChatTemp/android ./
+          rm -rf SeaChatTemp
+          echo "✅ Android folder copied"
+          ls -la android
+          test -f android/gradlew || { echo "❌ gradlew missing"; exit 1; }
 
-      - name: 8. Setup Project
+      - name: Setup Project
         run: |
-          echo "=== Setting up Android Project ==="
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties || { echo "❌ FAILED: local.properties"; exit 1; }
-          
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           mkdir -p android/app/src/main/assets/fonts
-          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/ || { echo "❌ FAILED: vector icons copy"; exit 1; }
-          
-          echo "org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8" >> android/gradle.properties
-          echo "org.gradle.daemon=false" >> android/gradle.properties
+          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/ || true
+          echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          
-          chmod +x android/gradlew || { echo "❌ FAILED: chmod gradlew"; exit 1; }
-          echo "✅ Project setup done"
+          chmod +x android/gradlew
 
-      - name: 9. Bundle JS
+      - name: Bundle JS
         run: |
-          echo "=== Bundling JavaScript ==="
           mkdir -p android/app/src/main/assets
-          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || { echo "❌ FAILED: JS Bundle failed. Check index.js exists"; ls -la; exit 1; }
-          echo "✅ JS Bundle done"
+          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
-      - name: 10. Build APK
+      - name: Build APK
         run: |
-          echo "=== Building APK ==="
           cd android
-          ./gradlew assembleDebug --no-daemon -x lint --stacktrace || { echo "❌ FAILED: Gradle build failed"; exit 1; }
-          echo "✅ APK Build done"
+          ./gradlew assembleDebug --no-daemon -x lint --stacktrace
           
-      - name: 11. Upload APK
-        if: success()
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
           path: android/app/build/outputs/apk/debug/*.apk
 
-      - name: 12. Debug on Failure
+      - name: Print Error if Failed
         if: failure()
         run: |
-          echo "=== DEBUG INFO ==="
-          echo "Current directory:"
-          pwd
+          echo "❌ BUILD FAILED"
+          echo "Files in root:"
           ls -la
-          echo "---"
           echo "Android folder:"
-          ls -la android/ || echo "android folder missing"
-          echo "---"
-          echo "app folder:"
-          ls -la android/app/ || echo "app folder missing"
-          echo "---"
-          echo "package.json:"
-          cat package.json || echo "package.json missing"
-          echo "---"
-          echo "index.js:"
-          ls -la index.js || echo "index.js missing"
+          ls -la android || echo "No android folder"
