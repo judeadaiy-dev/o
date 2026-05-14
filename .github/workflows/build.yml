@@ -25,19 +25,18 @@ jobs:
 
       - name: Install All Application Dependencies
         run: |
-          npm install --legacy-peer-deps
-          npm install @supabase/supabase-js react-native-dotenv react-native-url-polyfill
-          npm install @react-navigation/native @react-navigation/stack @react-navigation/bottom-tabs
-          npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons
+          # تثبيت طبيعي ونظيف بعد إصلاح التوافقية في مشروعك
+          npm install
+          npm install @react-navigation/native-stack
 
       - name: Inject Supabase Keys into .env File
         run: |
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
 
-      - name: Generate Modern Android Project
+      - name: Generate Fresh Modern Android Project
         run: |
-          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --npm
+          npx react-native@0.76.0 init SeaChatTemp --version 0.76.0 --skip-install --npm
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
           mkdir -p android/app/src/main/assets
@@ -66,7 +65,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Installed APK
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-Final-Mobile-App
