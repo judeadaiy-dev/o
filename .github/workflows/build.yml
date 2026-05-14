@@ -31,6 +31,10 @@ jobs:
           mkdir -p android/app/src/main/assets
           mkdir -p android/gradle/wrapper
           
+          # إعداد ملف الخصائص (حل المشكلة الأخيرة)
+          echo "android.useAndroidX=true" > android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+          
           echo "rootProject.name = 'SeaChat'" > android/settings.gradle
           echo "include ':app'" >> android/settings.gradle
           
@@ -63,7 +67,6 @@ jobs:
               }
           }
           dependencies { 
-              // تحديد الإصدار يدوياً ليجده السيرفر
               implementation("com.facebook.react:react-android:0.74.5") 
               implementation("com.facebook.react:hermes-android:0.74.5")
           }
