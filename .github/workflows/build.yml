@@ -23,30 +23,34 @@ jobs:
 
       - name: Full Auto Generation
         run: |
-          # مسح أي ملفات قديمة لضمان بناء "نظيف"
+          # تنظيف البيئة لضمان بناء أصلي 100%
           rm -rf android
           
-          # إجبار السيرفر على بناء مجلد أندرويد متوافق تلقائياً
-          # أمر 'yes' يقوم بالموافقة على كل الأسئلة التفاعلية بدلاً منكِ
+          # جعل React Native يبني المشروع كاملاً (الأندرويد والإعدادات)
           yes | npx react-native@0.74.5 init SeaChat --version 0.74.5 --skip-install --install-pods false
           
-          # نقل المجلد الذي بناه React Native إلى المسار الرئيسي
+          # نقل مجلد الأندرويد الأصلي
           cp -r SeaChat/android ./
+          
+          # نقل ملفات الإعدادات (Metro & Babel) التي أنشأها السيرفر لضمان التوافق
+          cp SeaChat/metro.config.js ./
+          cp SeaChat/babel.config.js ./
+          cp SeaChat/app.json ./
+          
           rm -rf SeaChat
 
       - name: Install Dependencies
         run: |
-          # تثبيت المكتبات التي يحتاجها كودك
           npm install --legacy-peer-deps
           
-          # تفعيل خاصية AndroidX الضرورية للمكتبات الحديثة
+          # إعدادات أندرويد الضرورية للهواتف الحديثة
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
       - name: Create App Bundle
         run: |
-          # ربط ملفاتك (index.js) بالمجلد الذي بناه السيرفر
+          # الآن سيجد السيرفر ملف metro.config.js ولن يظهر الخطأ
           mkdir -p android/app/src/main/assets
           npx react-native bundle \
             --platform android \
