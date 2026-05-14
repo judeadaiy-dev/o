@@ -33,48 +33,44 @@ jobs:
         run: |
           if [ ! -d "android" ]; then
             echo "Creating android folder..."
-            npx @react-native-community/cli init SeaChatTemp --skip-install --directory SeaChatTemp --version 0.74.5
+            # إنشاء المشروع بالاسم الصحيح مباشرة لتفادي مشاكل الحزم والأحرف
+            npx @react-native-community/cli init SeaChat --skip-install --directory SeaChatTemp --version 0.74.5
             cp -r SeaChatTemp/android ./
-            cp SeaChatTemp/app.json ./
             rm -rf SeaChatTemp
             echo "Android folder created"
           fi
-
-      - name: 7. Fix app name in files
-        run: |
-          sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/res/values/strings.xml
-          sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/java/com/seachattemp/MainActivity.kt || true
-          sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/java/com/seachattemp/MainApplication.kt || true
           
-      - name: 8. Create local.properties
+      - name: 7. Create local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-      - name: 9. Setup Vector Icons
+      - name: 8. Setup Vector Icons
         run: |
           mkdir -p android/app/src/main/assets/fonts
-          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/
+          if [ -d "node_modules/react-native-vector-icons/Fonts" ]; then
+            cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/
+          fi
 
-      - name: 10. Fix Gradle Settings
+      - name: 9. Fix Gradle Settings
         run: |
           echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
           echo "org.gradle.daemon=false" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
 
-      - name: 11. Make Gradlew Executable
+      - name: 10. Make Gradlew Executable
         run: chmod +x android/gradlew
 
-      - name: 12. Bundle JS
+      - name: 11. Bundle JS
         run: |
           mkdir -p android/app/src/main/assets
           npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
-      - name: 13. Build Debug APK
+      - name: 12. Build Debug APK
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon -x lint
           
-      - name: 14. Upload APK
+      - name: 13. Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
