@@ -25,10 +25,15 @@ jobs:
 
       - name: Fix Package JSON and Install Dependencies
         run: |
-          # استبدال الإصدار الخاطئ 8.3.0 بالإصدار الصحيح المستقر داخل الملف تلقائياً
-          sed -i 's/"react-native-image-picker": "^8.3.0"/"react-native-image-picker": "^8.2.1"/g' package.json
-          
-          # تثبيت نظيف ومستقر
+          rm -f package-lock.json yarn.lock
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            if (pkg.dependencies && pkg.dependencies['react-native-image-picker']) {
+              pkg.dependencies['react-native-image-picker'] = '^8.2.1';
+            }
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          "
           npm install --legacy-peer-deps
 
       - name: Inject Supabase Keys into .env File
@@ -38,7 +43,8 @@ jobs:
 
       - name: Generate Fresh Modern Android Project
         run: |
-          npx react-native@0.76.0 init SeaChatTemp --version 0.76.0 --skip-install --npm
+          # استخدام الـ CLI الحديث والمطلوب رسمياً لتوليد المجلد بنجاح
+          npx @react-native-community/cli init SeaChatTemp --version 0.76.0 --skip-install --npm --yes
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
           mkdir -p android/app/src/main/assets
