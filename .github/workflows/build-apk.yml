@@ -1,73 +1,39 @@
 name: Build SeaChat APK
 on:
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
 
-      - name: Debug - Print Start
-        run: |
-          echo "=== BUILD STARTED ==="
-          pwd
-          ls -la
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0' # أو النسخة التي تستخدمها
+          channel: 'stable'
 
-      - name: Create package.json
-        run: |
-          echo '{"name":"SeaChat","version":"1.0.0","dependencies":{"react-native":"0.74.5"}}' > package.json
-          cat package.json
+      - name: Get Dependencies
+        run: flutter pub get
 
-      - name: Create App.js
-        run: |
-          echo 'import React from "react";import {View,Text} from "react-native";const App = () => (<View><Text>SeaChat Works</Text></View>);export default App;' > App.js
+      - name: Build Android APK
+        run: flutter build apk --debug
 
-      - name: Create index.js
-        run: |
-          echo '{"name":"SeaChat","displayName":"SeaChat"}' > app.json
-          echo 'import {AppRegistry} from "react-native";import App from "./App";import {name as appName} from "./app.json";AppRegistry.registerComponent(appName, () => App);' > index.js
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Generate Android project
-        run: |
-          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install
-          cp -r SeaChatTemp/android ./
-          rm -rf SeaChatTemp
-          ls -la android
-
-      - name: Setup Gradle
-        run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
-          chmod +x android/gradlew
-
-      - name: Bundle JS
-        run: |
-          mkdir -p android/app/src/main/assets
-          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
-
-      - name: Build APK
-        run: cd android && ./gradlew assembleDebug --stacktrace
-          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: SeaChat-Debug-APK
+          path: build/app/outputs/flutter-apk/app-debug.apk
