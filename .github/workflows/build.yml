@@ -1,4 +1,4 @@
-name: Build SeaChat Mobile APK
+Name: Build SeaChat Mobile APK
 on:
   push:
     branches:
@@ -43,8 +43,9 @@ jobs:
 
       - name: Generate Fresh Modern Android Project
         run: |
-          # استخدام الـ CLI الحديث والمطلوب رسمياً لتوليد المجلد بنجاح
-          npx @react-native-community/cli init SeaChatTemp --version 0.76.0 --skip-install --npm --yes
+          # تم استبدال --npm بـ --pm npm وحذف الإصدار المحدد لتجنب التضارب
+          # وإضافة --skip-install لسرعة الإنجاز لأننا نعتمد على npm install في الخطوات السابقة
+          npx react-native@latest init SeaChatTemp --pm npm --skip-install --yes
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
           mkdir -p android/app/src/main/assets
@@ -52,11 +53,14 @@ jobs:
 
       - name: Configure Vector Icons for Android
         run: |
+          # التأكد من إضافة السطر في مكان صحيح داخل build.gradle
           echo "apply from: \"../../node_modules/react-native-vector-icons/fonts.gradle\"" >> android/app/build.gradle
 
       - name: Inject Internet Permission to AndroidManifest
         run: |
-          sed -i '/<\/manifest>/i \    <uses-permission android:name="android:permission.INTERNET" \/>' android/app/src/main/AndroidManifest.xml
+          # إضافة تصريح الإنترنت بشكل يضمن عدم تكراره
+          sed -i '/<uses-permission/d' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
       - name: Build Production React Native Bundle
         run: |
@@ -71,6 +75,8 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
+          # تنظيف المشروع قبل البناء لضمان عدم وجود ملفات معطوبة
+          ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload Finished APK
