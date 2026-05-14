@@ -33,18 +33,18 @@ jobs:
 
       - name: Install All Required Dependencies
         run: |
-          # مسح المخلفات لضمان تثبيت نظيف
-          rm -rf node_modules package-lock.json
-          
-          # تثبيت المكتبات الأساسية التي يشتكي السيرفر من فقدانها
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
-          
-          # إعدادات أندرويد
+
+      - name: Set Android Properties (The Fix)
+        run: |
+          # إضافة الخصائص المفقودة التي سببت فشل الـ Gradle
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
+          echo "hermesEnabled=true" >> android/gradle.properties
+          echo "newArchEnabled=false" >> android/gradle.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
       - name: Create App Bundle
