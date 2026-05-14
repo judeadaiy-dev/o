@@ -1,4 +1,4 @@
-name: Build SeaChat from Custom Files
+name: Build SeaChat Auto-Complete
 on:
   push:
     branches:
@@ -12,37 +12,70 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java & Node
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Node Dependencies
+      - name: Auto-Generate Missing Project Files
+        run: |
+          # إنشاء index.js إذا كان مفقوداً
+          if [ ! -f index.js ]; then
+            echo "import {AppRegistry} from 'react-native'; import App from './App'; import {name as appName} from './app.json'; AppRegistry.registerComponent(appName, () => App);" > index.js
+          fi
+
+          # إنشاء app.json إذا كان مفقوداً لتعريف اسم التطبيق
+          if [ ! -f app.json ]; then
+            echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
+          fi
+
+          # إنشاء App.js بسيط كاختبار إذا لم يوجد كود
+          if [ ! -f App.js ]; then
+            echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>SeaChat Ready!</Text></View> }" > App.js
+          fi
+
+          # إنشاء metro.config.js تلقائياً
+          cat <<EOF > metro.config.js
+          const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+          module.exports = mergeConfig(getDefaultConfig(__dirname), {});
+          EOF
+
+      - name: Install Dependencies (Safe Mode)
         run: |
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
+          npm install @react-native/metro-config@0.74.5 --save-dev --legacy-peer-deps
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Finalize Android Configuration
+      - name: Fix Android Environment
         run: |
-          # بما أن الملفات موجودة، سنقوم فقط بإضافة ملف الخصائص لضبط الذاكرة والـ SDK
-          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" > android/gradle.properties
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableJetifier=true" >> android/gradle.properties
-          echo "hermesEnabled=true" >> android/gradle.properties
-          echo "newArchEnabled=false" >> android/gradle.properties
+          # التأكد من وجود مجلد android وإصلاح الخصائص
+          mkdir -p android/app/src/main/assets
+          
+          # حقن استراتيجية حل النزاعات في ملف build.gradle الرئيسي
+          if [ -f android/build.gradle ]; then
+            sed -i '/allprojects {/a \    configurations.all { resolutionStrategy { force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" } }' android/build.gradle
+          fi
+
+          # ضبط الذاكرة والـ SDK
+          {
+            echo "org.gradle.jvmargs=-Xmx4096m"
+            echo "android.useAndroidX=true"
+            echo "android.enableJetifier=true"
+            echo "hermesEnabled=true"
+            echo "newArchEnabled=false"
+            echo "android.suppressUnsupportedCompileSdk=35"
+          } > android/gradle.properties
+          
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-      - name: Generate JS Bundle
+      - name: Build JS Assets
         run: |
-          mkdir -p android/app/src/main/assets
           npx react-native bundle \
             --platform android \
             --dev false \
@@ -50,21 +83,14 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
-      - name: Build Debug APK
+      - name: Finalize & Build APK
         working-directory: android
         run: |
-          # تأكدي أن ملف gradlew موجود في مجلد android الذي رفعتيه
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
 
-      - name: Upload APK
+      - name: Export APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Manual-Config-Build
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Success-Build
+          name: SeaChat-Full-Auto-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
