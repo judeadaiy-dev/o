@@ -1,4 +1,4 @@
-name: Build SeaChat APK Only
+name: Build SeaChat APK Final
 on:
   push:
     branches:
@@ -31,11 +31,15 @@ jobs:
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             if (!pkg.devDependencies) pkg.devDependencies = {};
             if (!pkg.dependencies) pkg.dependencies = {};
+            
+            // إصلاح إصدارات أدوات البناء
             pkg.devDependencies['@react-native-community/cli'] = 'latest';
             pkg.devDependencies['@react-native-community/cli-platform-android'] = 'latest';
             pkg.devDependencies['@react-native/metro-config'] = 'latest';
             pkg.devDependencies['metro-config'] = 'latest';
             pkg.devDependencies['@react-native/babel-preset'] = 'latest';
+
+            // إضافة جميع المكتبات التي يطلبها كودك لضمان عدم ظهور أخطاء مفقودة
             pkg.dependencies['react-native-paper'] = 'latest';
             pkg.dependencies['react-native-safe-area-context'] = 'latest';
             pkg.dependencies['react-native-vector-icons'] = 'latest';
@@ -45,28 +49,33 @@ jobs:
             pkg.dependencies['@react-navigation/bottom-tabs'] = 'latest';
             pkg.dependencies['@supabase/supabase-js'] = 'latest';
             pkg.dependencies['react-native-url-polyfill'] = 'latest';
+            
+            // التصحيح: إصدار مستقر وموجود فعلياً لمكتبة الصور
+            pkg.dependencies['react-native-image-picker'] = '7.1.2';
+
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
           npm install --legacy-peer-deps
 
-      - name: Create Configs
+      - name: Create Essential Configs
         run: |
-          # نستخدم اسم SeaChat حصراً ليتطابق مع كودك
+          # نستخدم اسم SeaChat حصراً ليتطابق مع AppRegistry في كودك
           echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
           echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
           echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); const config = {}; module.exports = mergeConfig(getDefaultConfig(__dirname), config);" > metro.config.js
 
-      - name: Setup Android Project
+      - name: Setup Android Project Structure
         run: |
-          # التعديل هنا: جعل اسم المشروع SeaChat ليتوافق مع AppRegistry
+          # بناء مشروع أندرويد يحمل نفس اسم كودك البرمجي
           npx @react-native-community/cli init SeaChat --pm npm --skip-install
           cp -r SeaChat/android ./
           rm -rf SeaChat
           mkdir -p android/app/src/main/assets
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          # إضافة صلاحية الإنترنت ليعمل Supabase
           sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
-      - name: Bundle Javascript
+      - name: Bundle Javascript (The Brain)
         run: |
           npx react-native bundle \
             --platform android \
@@ -75,15 +84,15 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
-      - name: Generate APK
+      - name: Generate Final APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Final APK
+      - name: Upload SeaChat APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Working-APK
+          name: SeaChat-Final-Working
           path: android/app/build/outputs/apk/debug/app-debug.apk
