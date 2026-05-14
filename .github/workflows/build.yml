@@ -23,29 +23,31 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install --save react-native@0.74.5 react@18.2.0 --legacy-peer-deps
+          npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install --legacy-peer-deps
 
       - name: Build Manual Android Structure
         run: |
-          # إنشاء المجلدات الأساسية التي كان يفتقدها السيرفر
           mkdir -p android/app/src/main/assets
           mkdir -p android/gradle/wrapper
           
-          # إنشاء ملف settings.gradle لتعريف المشروع
           echo "rootProject.name = 'SeaChat'" > android/settings.gradle
           echo "include ':app'" >> android/settings.gradle
           
-          # إنشاء ملف build.gradle الرئيسي (Project Level)
           cat <<EOF > android/build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
               dependencies { classpath("com.android.tools.build:gradle:8.2.1") }
           }
-          allprojects { repositories { google(); mavenCentral() } }
+          allprojects { 
+              repositories { 
+                  google()
+                  mavenCentral()
+                  maven { url "\$rootDir/../node_modules/react-native/android" }
+              } 
+          }
           EOF
 
-          # إنشاء ملف build.gradle الخاص بالتطبيق (App Level)
           mkdir -p android/app
           cat <<EOF > android/app/build.gradle
           apply plugin: "com.android.application"
@@ -60,10 +62,13 @@ jobs:
                   versionName "1.0"
               }
           }
-          dependencies { implementation("com.facebook.react:react-android") }
+          dependencies { 
+              // تحديد الإصدار يدوياً ليجده السيرفر
+              implementation("com.facebook.react:react-android:0.74.5") 
+              implementation("com.facebook.react:hermes-android:0.74.5")
+          }
           EOF
 
-          # ضبط إعدادات الـ SDK والـ Wrapper
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           gradle wrapper --gradle-version 8.10 --project-dir android
           chmod +x android/gradlew
