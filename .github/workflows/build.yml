@@ -1,4 +1,4 @@
-name: Build SeaChat Final Stable
+name: Build SeaChat Final Stable Force
 on:
   push:
     branches:
@@ -38,17 +38,47 @@ jobs:
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Apply Professional Stability Fixes
+      - name: Force Version Resolution (The Ultimate Fix)
         run: |
-          # 1. إجبار المشروع على إصدارات مستقرة من androidx.core لتجنب طلب إصدارات خرافية من Gradle
-          # سنقوم بحقن استراتيجية الحل داخل ملف build.gradle الرئيسي
-          sed -i '/allprojects {/a \    configurations.all { resolutionStrategy { force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" } }' android/build.gradle
-          
-          # 2. إعداد الخصائص لضمان عدم استهلاك الذاكرة وتخطي فحص الـ SDK
+          # سنستخدم ملف إعدادات خاص يمنع أي مكتبة من سحب إصدار أعلى من 1.13.1
+          cat <<EOF > android/build.gradle
+          buildscript {
+              ext {
+                  buildToolsVersion = "34.0.0"
+                  minSdkVersion = 21
+                  compileSdkVersion = 34
+                  targetSdkVersion = 34
+                  ndkVersion = "26.1.10909125"
+                  kotlinVersion = "1.9.22"
+              }
+              repositories { google(); mavenCentral() }
+              dependencies {
+                  classpath("com.android.tools.build:gradle:8.2.1")
+                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:\$kotlinVersion")
+              }
+          }
+
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+                  maven { url "\$rootDir/../node_modules/react-native/android" }
+              }
+              
+              # هنا السحر: إجبار السيرفر على الإصدار القديم مهما حاولت المكاتب الأخرى
+              configurations.all {
+                  resolutionStrategy {
+                      force "androidx.core:core:1.13.1"
+                      force "androidx.core:core-ktx:1.13.1"
+                  }
+              }
+          }
+          EOF
+
+          # ضبط الخصائص والذاكرة
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" > android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          echo "android.suppressUnsupportedCompileSdk=35" >> android/gradle.properties
           echo "hermesEnabled=true" >> android/gradle.properties
           echo "newArchEnabled=false" >> android/gradle.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
