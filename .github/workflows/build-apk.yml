@@ -8,46 +8,57 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       
-      - uses: actions/setup-node@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           
-      - uses: actions/setup-java@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Install NPM
+      - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
       - name: Generate Android Folder
         run: |
-          npx react-native@0.74.5 init SeaChatTemp --skip-install --version 0.74.5
-          cp -r SeaChatTemp/android ./
-          rm -rf SeaChatTemp
-          sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/res/values/strings.xml
-          find android -type f -exec sed -i 's/com.seachattemp/com.seachat/g' {} +
-          mv android/app/src/main/java/com/seachattemp android/app/src/main/java/com/seachat
+          if [ ! -d "android" ]; then
+            echo "Generating android folder..."
+            npx @react-native-community/cli android
+            echo "Android folder created"
+          fi
 
       - name: Setup Project
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           mkdir -p android/app/src/main/assets/fonts
           cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/
-          echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8" >> android/gradle.properties
+          echo "org.gradle.daemon=false" >> android/gradle.properties
+          echo "android.useAndroidX=true" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
           chmod +x android/gradlew
 
-      - name: Bundle & Build
+      - name: Bundle JS
         run: |
           mkdir -p android/app/src/main/assets
           npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
-          cd android && ./gradlew assembleDebug -x lint
+
+      - name: Build APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon -x lint
           
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
           path: android/app/build/outputs/apk/debug/*.apk
