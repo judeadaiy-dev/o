@@ -23,15 +23,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Dependencies
+      - name: Install Project Dependencies
         run: |
-          npm install --legacy-peer-deps
+          npm install
           npm install @react-native-community/cli
 
-      # هذه الخطوة هي الأهم: تقوم بتوليد مجلد أندرويد إذا كان مفقوداً
-      - name: Generate Android Folder
+      - name: Generate Android Native Folder
         run: |
-          npx react-native@latest init SeaChatTemp --version 0.74.5 --skip-install --directory SeaChatTemp
+          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --directory SeaChatTemp
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
           mkdir -p android/app/src/main/assets
@@ -46,13 +45,13 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
-      - name: Build APK
+      - name: Compile APK via Gradle
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-Mobile-App
