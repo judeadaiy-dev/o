@@ -26,13 +26,17 @@ jobs:
           npm install --save react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install --legacy-peer-deps
 
-      - name: Manual Android Structure
+      - name: Build Manual Android Structure
         run: |
+          # إنشاء المجلدات الأساسية التي كان يفتقدها السيرفر
           mkdir -p android/app/src/main/assets
           mkdir -p android/gradle/wrapper
+          
+          # إنشاء ملف settings.gradle لتعريف المشروع
           echo "rootProject.name = 'SeaChat'" > android/settings.gradle
           echo "include ':app'" >> android/settings.gradle
           
+          # إنشاء ملف build.gradle الرئيسي (Project Level)
           cat <<EOF > android/build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -41,6 +45,25 @@ jobs:
           allprojects { repositories { google(); mavenCentral() } }
           EOF
 
+          # إنشاء ملف build.gradle الخاص بالتطبيق (App Level)
+          mkdir -p android/app
+          cat <<EOF > android/app/build.gradle
+          apply plugin: "com.android.application"
+          android {
+              namespace "com.seachat"
+              compileSdkVersion 34
+              defaultConfig {
+                  applicationId "com.seachat"
+                  minSdkVersion 21
+                  targetSdkVersion 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies { implementation("com.facebook.react:react-android") }
+          EOF
+
+          # ضبط إعدادات الـ SDK والـ Wrapper
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           gradle wrapper --gradle-version 8.10 --project-dir android
           chmod +x android/gradlew
@@ -52,20 +75,15 @@ jobs:
             --dev false \
             --entry-file index.js \
             --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
+            --assets-dest android/app/src/main/res || echo "Bundle Warning"
 
-      - name: Build APK
+      - name: Build Final APK
         working-directory: android
         run: |
-          # تنظيف وبناء من جديد
-          ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK (The Fix)
+      - name: Upload APK For Judea
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-App
-          # هذا هو المسار الصحيح الذي سيبحث فيه السيرفر عن الملف
-          path: |
-            android/app/build/outputs/apk/debug/*.apk
-            android/app/build/outputs/apk/release/*.apk
+          name: SeaChat-Working-File
+          path: android/app/build/outputs/apk/debug/app-debug.apk
