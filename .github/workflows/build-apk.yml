@@ -23,13 +23,10 @@ jobs:
         run: npm install
         
       - name: Prebuild Android
-        run: npx expo prebuild -p android
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: https://jmsmrojtlstppnpwmkkk.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos
+        run: npx expo prebuild --platform android --clean
         
       - name: Build APK
-        run: cd android && ./gradlew assembleDebug
+        run: cd android && ./gradlew assembleDebug --no-daemon
         
       - name: Upload APK
         uses: actions/upload-artifact@v4
