@@ -1,4 +1,4 @@
-name: Build Android APK with Capacitor
+name: Build APK without EAS
 on: [workflow_dispatch]
 
 jobs:
@@ -11,34 +11,26 @@ jobs:
         with:
           node-version: 20
           
-      - name: Install dependencies
-        run: |
-          npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          
-      - name: Build web app
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: https://jmsmrojtlstppnpwmkkk.supabase.co
-          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos
-          
-      - name: Init Capacitor
-        run: |
-          npx cap init SeaChat com.basra_dev.iogd --web-dir=dist
-          npx cap add android
-          
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Prebuild Android
+        run: npx expo prebuild -p android
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://jmsmrojtlstppnpwmkkk.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos
+        
       - name: Build APK
-        run: |
-          npx cap copy
-          npx cap sync
-          cd android && ./gradlew assembleDebug
-          
+        run: cd android && ./gradlew assembleDebug
+        
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
