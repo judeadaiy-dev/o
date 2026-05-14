@@ -43,8 +43,8 @@ jobs:
 
       - name: Generate Fresh Modern Android Project
         run: |
-          # استخدام الـ CLI المخصص مباشرة مع خيار مدير الحزم الصحيح
-          npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install --yes
+          # استخدام الخيار --pm npm بدلاً من --npm وتجنب --yes المسببة للخطأ
+          npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install
           
           # نقل مجلد الأندرويد فقط لضمان بناء تطبيق موبايل
           cp -r SeaChatTemp/android ./
@@ -60,12 +60,12 @@ jobs:
 
       - name: Inject Internet Permission to AndroidManifest
         run: |
-          # التأكد من وجود صلاحية الإنترنت اللازمة لتطبيق SeaChat
+          # إضافة تصريح الإنترنت قبل وسم application لضمان عمل سوبابيز
           sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
       - name: Build Production React Native Bundle
         run: |
-          # تحويل كود جافا سكريبت إلى حزمة أندرويد (Bundle)
+          # تحويل كود جافا سكريبت إلى حزمة أندرويد أصلية
           npx react-native bundle \
             --platform android \
             --dev false \
