@@ -1,24 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack'; // التعديل الجديد هنا
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { supabase } from './lib/supabase';
 
-// ملاحظة: اسماء الملفات حسب صورك بالضبط
 import AuthScreen from './screens/AuthScreen';
 import AdminPanelScreen from './screens/AdminPanelScreen';
 import ChatRoomScreen from './screens/ChatRoomScreen';
-import Chats from './screens/Chats'; // مو ChatsScreen
-import CreateRoom from './screens/CreateRoom'; // مو CreateRoomScreen
+import Chats from './screens/Chats'; 
+import CreateRoom from './screens/CreateRoom'; 
 import Login from './screens/Login';
-import Profile from './screens/Profile'; // مو ProfileScreen
-import Rooms from './screens/Rooms'; // مو RoomsScreen
-import Settings from './screens/Settings'; // مو SettingsScreen
+import Profile from './screens/Profile'; 
+import Rooms from './screens/Rooms'; 
+import Settings from './screens/Settings'; 
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator(); // استخدام المحرك الأصلي السريع
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
@@ -57,7 +56,7 @@ export default function App() {
       <PaperProvider>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {session? (
+            {session ? (
               <>
                 <Stack.Screen name="Main" component={MainTabs} />
                 <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
@@ -73,4 +72,4 @@ export default function App() {
       </PaperProvider>
     </SafeAreaProvider>
   );
-    }
+}
