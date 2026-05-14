@@ -30,10 +30,12 @@ jobs:
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
-            // إضافة المكتبة المطلوبة لحل خطأ الـ CLI الأخير
+            // إضافة المكتبات المفقودة لحل أخطاء الـ CLI و Metro
             if (!pkg.devDependencies) pkg.devDependencies = {};
             pkg.devDependencies['@react-native-community/cli'] = 'latest';
             pkg.devDependencies['@react-native-community/cli-platform-android'] = 'latest';
+            pkg.devDependencies['@react-native/metro-config'] = 'latest';
+            pkg.devDependencies['metro-config'] = 'latest';
 
             if (pkg.dependencies && pkg.dependencies['react-native-image-picker']) {
               pkg.dependencies['react-native-image-picker'] = '^8.2.1';
@@ -49,7 +51,7 @@ jobs:
 
       - name: Generate Fresh Modern Android Project
         run: |
-          # استخدام الـ CLI لإنشاء الهيكل الأساسي
+          # إنشاء هيكل المشروع الأساسي
           npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
@@ -66,7 +68,7 @@ jobs:
 
       - name: Build Production React Native Bundle
         run: |
-          # الآن سيتم التعرف على الأمر لأننا أضفنا المكتبة في خطوة Fix Package JSON
+          # الآن سيعمل الـ Bundle لأن Metro Config أصبح متاحاً
           npx react-native bundle \
             --platform android \
             --dev false \
