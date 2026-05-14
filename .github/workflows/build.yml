@@ -1,34 +1,31 @@
 name: Build Android APK
-on:
-  push:
-    branches: [main, master]
-  workflow_dispatch:
+on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # مررناه لكل الخطوات
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Install EAS CLI
-        run: npm install -g eas-cli
-
+          
+      - name: Debug - Check if token exists
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "❌ EXPO_TOKEN فاضي. روح سو Secret"
+            exit 1
+          else
+            echo "✅ EXPO_TOKEN موجود طوله ${#TOKEN} حرف"
+          fi
+        env:
+          TOKEN: ${{ secrets.EXPO_TOKEN }}
+          
+      - run: npm install
+      - run: npm install -g eas-cli
+      
       - name: Build APK
         run: eas build --platform android --profile preview --non-interactive --wait
-
-      - name: Get APK URL
-        run: |
-          URL=$(eas build:list --platform=android --limit=1 --json --non-interactive | jq -r '.[0].artifacts.buildUrl')
-          echo "### ✅ رابط تحميل APK" >> $GITHUB_STEP_SUMMARY
-          echo "[اضغط هنا للتحميل]($URL)" >> $GITHUB_STEP_SUMMARY
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
