@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Environment (Java & Node)
+      - name: Setup Environment
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -42,14 +42,17 @@ jobs:
           "
           npm install --legacy-peer-deps
 
-      - name: Create Configs
+      - name: Create Missing Files (app.json & configs)
         run: |
+          # إنشاء ملف app.json الذي يطلبه الخطأ
+          echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
+          
+          # إنشاء ملفات الإعدادات
           echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
           echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); const config = {}; module.exports = mergeConfig(getDefaultConfig(__dirname), config);" > metro.config.js
 
       - name: Setup Android Project
         run: |
-          # إنشاء هيكل الأندرويد بدون الخيار المسبب للخطأ
           npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
@@ -59,6 +62,7 @@ jobs:
 
       - name: Bundle Javascript for Mobile
         run: |
+          # الآن سيجد ملف app.json ويعبر بسلام
           npx react-native bundle \
             --platform android \
             --dev false \
