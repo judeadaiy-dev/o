@@ -25,9 +25,9 @@ jobs:
 
       - name: Install All Application Dependencies
         run: |
-          # تثبيت طبيعي ونظيف بعد إصلاح التوافقية في مشروعك
-          npm install
-          npm install @react-navigation/native-stack
+          # تثبيت الحزم الأساسية وتخطي خطأ حزمة اختيار الصور عبر التثبيت المباشر
+          npm install --legacy-peer-deps
+          npm install react-native-image-picker@latest --save
 
       - name: Inject Supabase Keys into .env File
         run: |
