@@ -1,4 +1,4 @@
-name: Build SeaChat Final 35
+name: Build SeaChat Final Stable
 on:
   push:
     branches:
@@ -38,17 +38,16 @@ jobs:
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Force Android SDK 35 (The Fix)
+      - name: Apply Professional Fixes
         run: |
-          # رفع نسخة الـ SDK لـ 35 كما طلب السيرفر
-          sed -i 's/compileSdkVersion = 34/compileSdkVersion = 35/g' android/build.gradle
-          sed -i 's/targetSdkVersion = 34/targetSdkVersion = 35/g' android/build.gradle
+          # 1. إجبار المشروع على إصدارات أقدم من androidx.core ليتوافق مع Gradle 8.2.1
+          # سنضيف استراتيجية حل النزاعات في ملف build.gradle
+          sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" }' android/build.gradle
           
-          # تفعيل الخصائص وحل مشكلة الذاكرة
+          # 2. ضبط الخصائص والذاكرة
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" > android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableJetifier=false" >> android/gradle.properties
-          echo "android.suppressUnsupportedCompileSdk=35" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
           echo "hermesEnabled=true" >> android/gradle.properties
           echo "newArchEnabled=false" >> android/gradle.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
@@ -72,5 +71,5 @@ jobs:
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Full-Auto
+          name: SeaChat-Stable-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
