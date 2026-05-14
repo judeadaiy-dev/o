@@ -1,56 +1,38 @@
-name: Build SeaChat APK
-on:
-  workflow_dispatch:
+name: Build
+on: workflow_dispatch
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install deps
+      - uses: android-actions/setup-android@v3
+      
+      - name: Install
         run: npm install --legacy-peer-deps
-
-      - name: Check files exist
-        run: |
-          echo "Checking your files..."
-          ls -la App.js
-          ls -la index.js
-          ls -la screens/
-          ls -la lib/supabase.js
-
+        
       - name: Init Android
         run: |
-          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install
-          cp -r SeaChatTemp/android ./
-          rm -rf SeaChatTemp
+          npx react-native@0.74.5 init temp --version 0.74.5 --skip-install
+          cp -r temp/android ./
+          rm -rf temp
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          chmod +x android/gradlew
-
+          
       - name: Bundle
         run: |
           mkdir -p android/app/src/main/assets
           npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
-
-      - name: Build APK
-        run: cd android && ./gradlew assembleDebug
           
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Build
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+        
+      - uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK
+          name: apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
