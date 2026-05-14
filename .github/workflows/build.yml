@@ -23,11 +23,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install All Application Dependencies
+      - name: Fix Package JSON and Install Dependencies
         run: |
-          # تثبيت الحزم الأساسية وتخطي خطأ حزمة اختيار الصور عبر التثبيت المباشر
+          # استبدال الإصدار الخاطئ 8.3.0 بالإصدار الصحيح المستقر داخل الملف تلقائياً
+          sed -i 's/"react-native-image-picker": "^8.3.0"/"react-native-image-picker": "^8.2.1"/g' package.json
+          
+          # تثبيت نظيف ومستقر
           npm install --legacy-peer-deps
-          npm install react-native-image-picker@latest --save
 
       - name: Inject Supabase Keys into .env File
         run: |
