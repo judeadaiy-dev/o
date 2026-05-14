@@ -6,7 +6,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     
     steps:
       - name: 1. Checkout code
@@ -29,23 +28,25 @@ jobs:
       - name: 5. Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: 6. Generate Android Project
+      - name: 6. Create Android Project
         run: |
           if [ ! -d "android" ]; then
-            echo "Creating android folder..."
-            npx @react-native-community/cli init SeaChatTemp --skip-install --directory SeaChatTemp --version 0.74.5
+            echo "Creating android folder using RN CLI..."
+            npx react-native@0.74.5 init SeaChatTemp --skip-install --version 0.74.5
             cp -r SeaChatTemp/android ./
             cp SeaChatTemp/app.json ./
             rm -rf SeaChatTemp
             echo "Android folder created"
           fi
 
-      - name: 7. Fix app name in files
+      - name: 7. Fix Package Name
         run: |
+          # تغيير اسم البكج من com.seachattemp الى com.seachat
+          find android -type f -name "*.java" -o -name "*.kt" -o -name "*.xml" | xargs sed -i 's/com.seachattemp/com.seachat/g'
+          find android -type f -name "BUCK" -o -name "*.gradle" | xargs sed -i 's/com.seachattemp/com.seachat/g'
           sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/res/values/strings.xml
-          sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/java/com/seachattemp/MainActivity.kt || true
-          sed -i 's/SeaChatTemp/SeaChat/g' android/app/src/main/java/com/seachattemp/MainApplication.kt || true
-          
+          mv android/app/src/main/java/com/seachattemp android/app/src/main/java/com/seachat || true
+
       - name: 8. Create local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
@@ -79,3 +80,4 @@ jobs:
         with:
           name: SeaChat-APK
           path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
