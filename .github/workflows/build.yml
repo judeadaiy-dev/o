@@ -25,36 +25,35 @@ jobs:
 
       - name: Prepare Project and Node Modules
         run: |
-          # تنظيف أي ملفات قديمة
           rm -f package-lock.json yarn.lock
           
-          # تعديل ملف القائمة لإضافة المحركات المفقودة برمجياً
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             
             if (!pkg.devDependencies) pkg.devDependencies = {};
-            // هذه المكتبات هي التي تصنع مجلد node_modules المتكامل
+            
+            // تصحيح أسماء الحزم لضمان التحميل من npm بنجاح
             pkg.devDependencies['@react-native-community/cli'] = 'latest';
             pkg.devDependencies['@react-native-community/cli-platform-android'] = 'latest';
             pkg.devDependencies['@react-native/metro-config'] = 'latest';
             pkg.devDependencies['metro-config'] = 'latest';
-            pkg.devDependencies['@react-native/babel-preset-standard'] = 'latest';
+            pkg.devDependencies['@react-native/babel-preset'] = 'latest'; // تم تصحيح الاسم هنا
             pkg.devDependencies['@babel/preset-env'] = 'latest';
 
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
-          # الأمر السحري الذي يصنع مجلد node_modules في السيرفر
           npm install --legacy-peer-deps
 
       - name: Create Essential Configs
         run: |
-          # إنشاء ملفات الإعدادات لكي يفهم السيرفر خريطة كودك
+          # إنشاء ملف إعدادات مترو
           echo \"const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
           const config = {};
           module.exports = mergeConfig(getDefaultConfig(__dirname), config);\" > metro.config.js
           
-          echo \"module.exports = { presets: ['module:@react-native/babel-preset-standard'] };\" > babel.config.js
+          # إنشاء ملف بابل باستخدام الاسم الصحيح للحزمة
+          echo \"module.exports = { presets: ['module:@react-native/babel-preset'] };\" > babel.config.js
 
       - name: Inject Supabase Keys
         run: |
@@ -63,7 +62,6 @@ jobs:
 
       - name: Generate Android Shell
         run: |
-          # إنشاء قالب الأندرويد الذي سيوضع داخله كود SeaChat
           npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
@@ -80,7 +78,6 @@ jobs:
 
       - name: Bundle Javascript
         run: |
-          # هنا يتم دمج كودك مع مجلد node_modules الذي صنعه السيرفر
           npx react-native bundle \
             --platform android \
             --dev false \
