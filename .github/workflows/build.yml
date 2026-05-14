@@ -30,7 +30,6 @@ jobs:
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             if (!pkg.devDependencies) pkg.devDependencies = {};
-            // أدوات بناء الأندرويد فقط
             pkg.devDependencies['@react-native-community/cli'] = 'latest';
             pkg.devDependencies['@react-native-community/cli-platform-android'] = 'latest';
             pkg.devDependencies['@react-native/metro-config'] = 'latest';
@@ -43,29 +42,23 @@ jobs:
           "
           npm install --legacy-peer-deps
 
-      - name: Create Configs (No Syntax Errors)
+      - name: Create Configs
         run: |
-          # هذه الطريقة تمنع حدوث خطأ الأقواس (Unexpected token)
           echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
-          
-          echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');" > metro.config.js
-          echo "const config = {};" >> metro.config.js
-          echo "module.exports = mergeConfig(getDefaultConfig(__dirname), config);" >> metro.config.js
+          echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); const config = {}; module.exports = mergeConfig(getDefaultConfig(__dirname), config);" > metro.config.js
 
       - name: Setup Android Project
         run: |
-          # بناء هيكل الأندرويد الخام
-          npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install --yes
+          # إنشاء هيكل الأندرويد بدون الخيار المسبب للخطأ
+          npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
           mkdir -p android/app/src/main/assets
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          # إضافة تصريح الإنترنت للـ APK
           sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
       - name: Bundle Javascript for Mobile
         run: |
-          # تحويل الكود إلى صيغة يفهمها الأندرويد (APK Bundle)
           npx react-native bundle \
             --platform android \
             --dev false \
