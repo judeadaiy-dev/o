@@ -1,86 +1,64 @@
 name: Build SeaChat APK
-
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Setup Node 20
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
           
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
-      - name: Setup Android SDK
+      - name: Setup Android
         uses: android-actions/setup-android@v3
 
-      - name: Install Dependencies
-        run: |
-          echo "=== Installing deps ==="
-          npm install --legacy-peer-deps
-          npm install react-native@0.74.5 --save --legacy-peer-deps
-          echo "✅ Deps installed"
-          ls -la node_modules/react-native
+      - name: Start Build Log
+        run: echo "=== STARTING BUILD ==="
 
-      - name: Create Required Files
+      - name: Install RN
+        run: npm install react-native@0.74.5 --save
+
+      - name: Create Files
         run: |
-          echo "=== Creating index.js and app.json ==="
+          echo '{"name":"SeaChat","displayName":"SeaChat"}' > app.json
           echo 'import {AppRegistry} from "react-native";import App from "./App";import {name as appName} from "./app.json";AppRegistry.registerComponent(appName, () => App);' > index.js
-          echo '{"name": "SeaChat","displayName": "SeaChat"}' > app.json
-          echo "✅ Files created"
+          echo "Files created"
+          ls -la
 
-      - name: Generate Android Project
+      - name: Init Android
         run: |
-          echo "=== Generating android using react-native init ==="
-          npx react-native@0.74.5 init SeaChatTemp --skip-install --version 0.74.5 --directory SeaChatTemp
+          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
-          echo "✅ Android folder copied"
+          echo "Android folder exists:"
           ls -la android
-          test -f android/gradlew || { echo "❌ gradlew missing"; exit 1; }
 
-      - name: Setup Project
+      - name: Setup Gradle
         run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          mkdir -p android/app/src/main/assets/fonts
-          cp node_modules/react-native-vector-icons/Fonts/*.ttf android/app/src/main/assets/fonts/ || true
           echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableJetifier=true" >> android/gradle.properties
           chmod +x android/gradlew
 
-      - name: Bundle JS
+      - name: Bundle
         run: |
           mkdir -p android/app/src/main/assets
           npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
-      - name: Build APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon -x lint --stacktrace
+      - name: Build
+        run: cd android && ./gradlew assembleDebug --stacktrace
           
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
-          path: android/app/build/outputs/apk/debug/*.apk
-
-      - name: Print Error if Failed
-        if: failure()
-        run: |
-          echo "❌ BUILD FAILED"
-          echo "Files in root:"
-          ls -la
-          echo "Android folder:"
-          ls -la android || echo "No android folder"
+          path: android/app/build/outputs/apk/debug/app-debug.apk
