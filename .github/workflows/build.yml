@@ -31,15 +31,11 @@ jobs:
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             if (!pkg.devDependencies) pkg.devDependencies = {};
             if (!pkg.dependencies) pkg.dependencies = {};
-            
-            // مكتبات البناء الأساسية
             pkg.devDependencies['@react-native-community/cli'] = 'latest';
             pkg.devDependencies['@react-native-community/cli-platform-android'] = 'latest';
             pkg.devDependencies['@react-native/metro-config'] = 'latest';
             pkg.devDependencies['metro-config'] = 'latest';
             pkg.devDependencies['@react-native/babel-preset'] = 'latest';
-
-            // إضافة المكتبات التي يطلبها كودك (App.js) لكي يجدها السيرفر
             pkg.dependencies['react-native-paper'] = 'latest';
             pkg.dependencies['react-native-safe-area-context'] = 'latest';
             pkg.dependencies['react-native-vector-icons'] = 'latest';
@@ -47,30 +43,30 @@ jobs:
             pkg.dependencies['@react-navigation/native'] = 'latest';
             pkg.dependencies['@react-navigation/native-stack'] = 'latest';
             pkg.dependencies['@react-navigation/bottom-tabs'] = 'latest';
-            pkg.dependencies['react-native-image-picker'] = '^7.1.2';
             pkg.dependencies['@supabase/supabase-js'] = 'latest';
             pkg.dependencies['react-native-url-polyfill'] = 'latest';
-
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
           npm install --legacy-peer-deps
 
-      - name: Create Missing Files
+      - name: Create Configs
         run: |
+          # نستخدم اسم SeaChat حصراً ليتطابق مع كودك
           echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
           echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
           echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); const config = {}; module.exports = mergeConfig(getDefaultConfig(__dirname), config);" > metro.config.js
 
       - name: Setup Android Project
         run: |
-          npx @react-native-community/cli init SeaChatTemp --pm npm --skip-install
-          cp -r SeaChatTemp/android ./
-          rm -rf SeaChatTemp
+          # التعديل هنا: جعل اسم المشروع SeaChat ليتوافق مع AppRegistry
+          npx @react-native-community/cli init SeaChat --pm npm --skip-install
+          cp -r SeaChat/android ./
+          rm -rf SeaChat
           mkdir -p android/app/src/main/assets
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
-      - name: Bundle Javascript for Mobile
+      - name: Bundle Javascript
         run: |
           npx react-native bundle \
             --platform android \
@@ -89,5 +85,5 @@ jobs:
       - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-App-Debug
+          name: SeaChat-Final-Working-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
