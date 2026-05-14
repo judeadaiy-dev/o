@@ -4,28 +4,13 @@ on: [workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          
-      - name: Debug - Check if token exists
-        run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "❌ EXPO_TOKEN فاضي. روح سو Secret"
-            exit 1
-          else
-            echo "✅ EXPO_TOKEN موجود طوله ${#TOKEN} حرف"
-          fi
-        env:
-          TOKEN: ${{ secrets.EXPO_TOKEN }}
-          
       - run: npm install
       - run: npm install -g eas-cli
-      
-      - name: Build APK
-        run: eas build --platform android --profile preview --non-interactive --wait
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - run: eas build --platform android --profile preview --non-interactive --wait
