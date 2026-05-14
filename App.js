@@ -2,9 +2,9 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createClient } from '@supabase/supabase-js';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { StatusBar } from 'react-native';
+import { supabase } from './lib/supabase';
 
 // الشاشات
 import ProfileScreen from './screens/ProfileScreen';
@@ -16,12 +16,7 @@ import ChatsScreen from './screens/ChatsScreen';
 import DirectChatScreen from './screens/DirectChatScreen';
 import AuthScreen from './screens/AuthScreen';
 
-// 1. Supabase Config - بدلها بمعلوماتك
-const supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
-const supabaseAnonKey = 'YOUR_ANON_KEY';
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// 2. Auth Context
+// 1. Auth Context
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -54,7 +49,7 @@ function AuthProvider({ children }) {
   );
 }
 
-// 3. Navigation
+// 2. Navigation
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -64,7 +59,7 @@ function BottomTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          backgroundColor: 'rgba(15, 23, 42, 0.98)',
           borderTopWidth: 1,
           borderTopColor: 'rgba(148, 163, 184, 0.1)',
           height: 60,
@@ -73,6 +68,10 @@ function BottomTabs() {
         },
         tabBarActiveTintColor: '#3B82F6',
         tabBarInactiveTintColor: '#64748b',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
       }}
     >
       <Tab.Screen 
@@ -81,7 +80,7 @@ function BottomTabs() {
         options={{
           tabBarLabel: 'الغرف',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="chatbubbles-outline" size={size} color={color} />
+            <Icon name="chatbubbles" size={size} color={color} />
           ),
         }}
       />
@@ -91,7 +90,7 @@ function BottomTabs() {
         options={{
           tabBarLabel: 'محادثات',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="chatbubble-ellipses-outline" size={size} color={color} />
+            <Icon name="chatbubble-ellipses" size={size} color={color} />
           ),
         }}
       />
@@ -101,7 +100,7 @@ function BottomTabs() {
         options={{
           tabBarLabel: 'حسابي',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="person-outline" size={size} color={color} />
+            <Icon name="person" size={size} color={color} />
           ),
         }}
       />
@@ -111,7 +110,7 @@ function BottomTabs() {
         options={{
           tabBarLabel: 'اعدادات',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="settings-outline" size={size} color={color} />
+            <Icon name="settings" size={size} color={color} />
           ),
         }}
       />
@@ -149,4 +148,4 @@ export default function App() {
       <AppNavigator />
     </AuthProvider>
   );
-  }
+          }
