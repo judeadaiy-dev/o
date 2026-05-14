@@ -1,52 +1,56 @@
-name: Auto-Generate and Build SeaChat
+name: Build SeaChat APK
 on:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-
-      - name: Setup Java 17
+          
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Install Project Dependencies
-        run: npm install
+      - name: Install deps
+        run: npm install --legacy-peer-deps
 
-      - name: Generate Android Folder
+      - name: Check files exist
         run: |
-          # نستخدم npx لإنشاء مشروع مؤقت لنسخ مجلد الأندرويد منه المتوافق مع إصدارك
-          npx react-native@0.74.5 init TempProject --version 0.74.5 --skip-install --install-pods false
-          cp -r TempProject/android ./
-          rm -rf TempProject
-          echo "Android folder generated successfully."
+          echo "Checking your files..."
+          ls -la App.js
+          ls -la index.js
+          ls -la screens/
+          ls -la lib/supabase.js
 
-      - name: Setup Gradle & Local Properties
+      - name: Init Android
         run: |
-          chmod +x android/gradlew
+          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install
+          cp -r SeaChatTemp/android ./
+          rm -rf SeaChatTemp
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          # التأكد من تسمية التطبيق داخل ملفات الأندرويد بـ SeaChat
-          sed -i 's/TempProject/SeaChat/g' android/settings.gradle
-          sed -i 's/TempProject/SeaChat/g' android/app/src/main/res/values/strings.xml
+          chmod +x android/gradlew
 
-      - name: Build APK (Debug)
+      - name: Bundle
         run: |
-          cd android
-          ./gradlew assembleDebug --stacktrace
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
+      - name: Build APK
+        run: cd android && ./gradlew assembleDebug
+          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Generated-APK
+          name: SeaChat-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
