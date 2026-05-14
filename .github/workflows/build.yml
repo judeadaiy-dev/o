@@ -24,10 +24,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        # هذا الامر يثبت كل الحزم ويولد package-lock.json تلقائياً
 
       - name: Build APK
         run: eas build --platform android --profile preview --non-interactive --wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Get APK URL
         run: |
