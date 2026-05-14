@@ -12,16 +12,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Environment
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Full Auto Generation
+      - name: Initialize Project Structure
         run: |
           rm -rf android
           yes | npx react-native@0.74.5 init SeaChat --version 0.74.5 --skip-install --install-pods false
@@ -31,16 +33,17 @@ jobs:
           cp SeaChat/app.json ./
           rm -rf SeaChat
 
-      - name: Install All Required Dependencies
+      - name: Install Dependencies
         run: |
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Force Version Resolution (The Clean Fix)
+      - name: Write Build Configuration
         run: |
-          cat <<EOF > android/build.gradle
+          # كتابة ملف build.gradle بدون أي تعليقات أو رموز عربية قد تسبب مشاكل محاذاة
+          cat <<'EOF' > android/build.gradle
           buildscript {
               ext {
                   buildToolsVersion = "34.0.0"
@@ -50,10 +53,13 @@ jobs:
                   ndkVersion = "26.1.10909125"
                   kotlinVersion = "1.9.22"
               }
-              repositories { google(); mavenCentral() }
+              repositories {
+                  google()
+                  mavenCentral()
+              }
               dependencies {
                   classpath("com.android.tools.build:gradle:8.2.1")
-                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:\$kotlinVersion")
+                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
               }
           }
 
@@ -61,9 +67,8 @@ jobs:
               repositories {
                   google()
                   mavenCentral()
-                  maven { url "\$rootDir/../node_modules/react-native/android" }
+                  maven { url "$rootDir/../node_modules/react-native/android" }
               }
-              
               configurations.all {
                   resolutionStrategy {
                       force "androidx.core:core:1.13.1"
@@ -73,7 +78,8 @@ jobs:
           }
           EOF
 
-          # ضبط الخصائص والذاكرة في ملف منفصل
+      - name: Set Environment Properties
+        run: |
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" > android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
@@ -81,7 +87,7 @@ jobs:
           echo "newArchEnabled=false" >> android/gradle.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-      - name: Create App Bundle
+      - name: Generate Bundle
         run: |
           mkdir -p android/app/src/main/assets
           npx react-native bundle \
@@ -91,15 +97,14 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
-      - name: Build APK
+      - name: Execute Gradle Build
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
 
-      - name: Upload Final APK
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Build
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: SeaChat-Success-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
