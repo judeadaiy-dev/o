@@ -17,26 +17,37 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
-      - name: Install Project Dependencies
+      - name: Install Dependencies
         run: |
-          npm install
-          npm install @react-native-community/cli
+          npm install --legacy-peer-deps
+          npm install @supabase/supabase-js react-native-dotenv
 
-      - name: Generate Android Native Folder
+      - name: Inject Supabase Keys into .env File
         run: |
-          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --directory SeaChatTemp
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+
+      - name: Generate Modern Android Project
+        run: |
+          npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --npm
           cp -r SeaChatTemp/android ./
           rm -rf SeaChatTemp
           mkdir -p android/app/src/main/assets
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-      - name: Build React Native Bundle
+      - name: Inject Internet Permission to AndroidManifest
+        run: |
+          sed -i '/<\/manifest>/i \    <uses-permission android:name="android:permission.INTERNET" \/>' android/app/src/main/AndroidManifest.xml
+
+      - name: Build Production React Native Bundle
         run: |
           npx react-native bundle \
             --platform android \
@@ -45,14 +56,14 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
-      - name: Compile APK via Gradle
+      - name: Compile Production APK via Gradle
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Finished APK
+      - name: Upload Installed APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Mobile-App
+          name: SeaChat-Final-Mobile-App
           path: android/app/build/outputs/apk/debug/app-debug.apk
