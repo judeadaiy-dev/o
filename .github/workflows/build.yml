@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # مررناه لكل الخطوات
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,19 +18,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
       - name: Install dependencies
         run: npm install
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
       - name: Build APK
         run: eas build --platform android --profile preview --non-interactive --wait
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Get APK URL
         run: |
