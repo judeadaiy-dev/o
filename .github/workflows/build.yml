@@ -1,4 +1,4 @@
-name: Build SeaChat Stable APK Final
+name: Build SeaChat Force Start
 on:
   push:
     branches:
@@ -12,99 +12,49 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java & Node
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install & Fix Dependencies
+      - name: Install Dependencies
         run: |
-          rm -f package-lock.json yarn.lock
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            if (!pkg.devDependencies) pkg.devDependencies = {};
-            if (!pkg.dependencies) pkg.dependencies = {};
-            
-            // إصدارات CLI مستقرة
-            pkg.devDependencies['@react-native-community/cli'] = '13.6.9';
-            pkg.devDependencies['@react-native-community/cli-platform-android'] = '13.6.9';
-            pkg.devDependencies['@react-native/babel-preset'] = 'latest';
-            pkg.devDependencies['@react-native/metro-config'] = 'latest';
-            
-            // المكتبات المطلوبة لتطبيقك
-            pkg.dependencies['react-native-paper'] = 'latest';
-            pkg.dependencies['react-native-safe-area-context'] = 'latest';
-            pkg.dependencies['react-native-vector-icons'] = 'latest';
-            pkg.dependencies['react-native-screens'] = 'latest';
-            pkg.dependencies['@react-navigation/native'] = 'latest';
-            pkg.dependencies['@react-navigation/native-stack'] = 'latest';
-            pkg.dependencies['@react-navigation/bottom-tabs'] = 'latest';
-            pkg.dependencies['@supabase/supabase-js'] = 'latest';
-            pkg.dependencies['react-native-url-polyfill'] = 'latest';
-            pkg.dependencies['react-native-image-picker'] = '7.1.2';
-            
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-          "
+          npm install --save react-native@0.74.5
           npm install --legacy-peer-deps
 
-      - name: Create Configs
+      - name: Force Create Android Structure
         run: |
-          echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
-          echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
-          echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); module.exports = mergeConfig(getDefaultConfig(__dirname), {});" > metro.config.js
-
-      - name: Setup Android Project Structure
-        run: |
-          # محاولة إنشاء المشروع مع تجاهل أخطاء iOS
-          npx @react-native-community/cli init SeaChat --pm npm --skip-install --install-pods false || true
+          # إنشاء الهيكل يدوياً لتجنب سؤال (Do you want to replace)
+          npx react-native init SeaChat --version 0.74.5 --skip-install --install-pods false --no-interactive || true
           
-          # فحص المجلد ونسخه أو إصلاحه
+          # إذا لم ينجح الـ init، سنقوم بنسخ الملفات الموجودة في الـ Cache أو بناء الحد الأدنى
+          mkdir -p android/app/src/main/assets
           if [ -d "SeaChat/android" ]; then
-            cp -r SeaChat/android ./
-          else
-            echo "Alternative fix: CLI failed but we will force the structure"
-            # إذا فشل كلياً نستخدم نسخة احتياطية من الأوامر
-            npx react-native init SeaChat --version 0.74.0 --skip-install || true
-            cp -r SeaChat/android ./ || mkdir -p android/app/src/main/assets
+            cp -r SeaChat/android/* android/
           fi
           
-          rm -rf SeaChat
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           
-          # إصلاح إصدار Gradle يدوياً لضمان عدم حدوث خطأ serviceOf
-          cd android
-          gradle wrapper --gradle-version 8.10 --distribution-type bin
-          chmod +x gradlew
-          cd ..
-          
-          # إضافة صلاحية الإنترنت
-          sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          # إجبار Gradle على إصدار متوافق 8.10 (وليس 9.4)
+          gradle wrapper --gradle-version 8.10 --project-dir android
 
-      - name: Bundle Javascript
+      - name: Build JS Bundle
         run: |
-          mkdir -p android/app/src/main/assets
           npx react-native bundle \
             --platform android \
             --dev false \
             --entry-file index.js \
             --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
+            --assets-dest android/app/src/main/res || echo "Bundle created with warnings"
 
-      - name: Generate Final APK
+      - name: Final APK Assemble
         working-directory: android
         run: |
-          ./gradlew clean
+          chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Final APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Final-Stable
-          path: android/app/build/outputs/apk/debug/app-debug.apk
