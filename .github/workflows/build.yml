@@ -1,4 +1,4 @@
-name: Build SeaChat APK Final
+name: Build SeaChat Stable APK
 on:
   push:
     branches:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Environment
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -32,14 +32,12 @@ jobs:
             if (!pkg.devDependencies) pkg.devDependencies = {};
             if (!pkg.dependencies) pkg.dependencies = {};
             
-            // إصلاح إصدارات أدوات البناء
-            pkg.devDependencies['@react-native-community/cli'] = 'latest';
-            pkg.devDependencies['@react-native-community/cli-platform-android'] = 'latest';
-            pkg.devDependencies['@react-native/metro-config'] = 'latest';
-            pkg.devDependencies['metro-config'] = 'latest';
+            // إصدارات CLI محددة لضمان التوافق
+            pkg.devDependencies['@react-native-community/cli'] = '13.6.9';
+            pkg.devDependencies['@react-native-community/cli-platform-android'] = '13.6.9';
             pkg.devDependencies['@react-native/babel-preset'] = 'latest';
-
-            // إضافة جميع المكتبات التي يطلبها كودك لضمان عدم ظهور أخطاء مفقودة
+            pkg.devDependencies['@react-native/metro-config'] = 'latest';
+            
             pkg.dependencies['react-native-paper'] = 'latest';
             pkg.dependencies['react-native-safe-area-context'] = 'latest';
             pkg.dependencies['react-native-vector-icons'] = 'latest';
@@ -49,33 +47,34 @@ jobs:
             pkg.dependencies['@react-navigation/bottom-tabs'] = 'latest';
             pkg.dependencies['@supabase/supabase-js'] = 'latest';
             pkg.dependencies['react-native-url-polyfill'] = 'latest';
-            
-            // التصحيح: إصدار مستقر وموجود فعلياً لمكتبة الصور
             pkg.dependencies['react-native-image-picker'] = '7.1.2';
-
+            
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
           npm install --legacy-peer-deps
 
-      - name: Create Essential Configs
+      - name: Create Configs
         run: |
-          # نستخدم اسم SeaChat حصراً ليتطابق مع AppRegistry في كودك
           echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
           echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
-          echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); const config = {}; module.exports = mergeConfig(getDefaultConfig(__dirname), config);" > metro.config.js
+          echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); module.exports = mergeConfig(getDefaultConfig(__dirname), {});" > metro.config.js
 
-      - name: Setup Android Project Structure
+      - name: Setup Android Project & Fix Gradle
         run: |
-          # بناء مشروع أندرويد يحمل نفس اسم كودك البرمجي
           npx @react-native-community/cli init SeaChat --pm npm --skip-install
           cp -r SeaChat/android ./
           rm -rf SeaChat
           mkdir -p android/app/src/main/assets
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          # إضافة صلاحية الإنترنت ليعمل Supabase
+          
+          # أهم سطر: إجبار Gradle على التراجع لإصدار مستقر 8.10
+          cd android
+          ./gradlew wrapper --gradle-version 8.10 --distribution-type bin
+          cd ..
+          
           sed -i '/<application/i \    <uses-permission android:name="android:permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
 
-      - name: Bundle Javascript (The Brain)
+      - name: Bundle Javascript
         run: |
           npx react-native bundle \
             --platform android \
@@ -91,8 +90,8 @@ jobs:
           ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload SeaChat APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Working
+          name: SeaChat-Working-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
