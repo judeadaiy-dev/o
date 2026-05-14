@@ -17,18 +17,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          # تم إزالة سطر الكاش هنا لمنع الخطأ
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # تم إزالة سطر الكاش هنا لمنع التعارض
 
       - name: Install Dependencies
         run: |
           npm install --legacy-peer-deps
-          npm install @supabase/supabase-js react-native-dotenv
+          npm install @supabase/supabase-js react-native-dotenv react-native-url-polyfill
 
       - name: Inject Supabase Keys into .env File
         run: |
