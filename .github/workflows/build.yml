@@ -12,88 +12,64 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java (Temurin 17)
+      - name: Setup Java & Node
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Node.js (v20)
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20' # تم حذف الكاش هنا لمنع خطأ الـ lock file النهائي
+          node-version: '20'
 
-      - name: Auto-Generate Core Project Files
+      - name: Auto-Generate Missing Project Files
         run: |
-          if [ ! -f package.json ]; then
-            echo '{"name": "SeaChat", "version": "0.0.1", "private": true}' > package.json
-          fi
-
-          if [ ! -f app.json ]; then
-            echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
-          fi
-
+          # إنشاء index.js إذا كان مفقوداً
           if [ ! -f index.js ]; then
             echo "import {AppRegistry} from 'react-native'; import App from './App'; import {name as appName} from './app.json'; AppRegistry.registerComponent(appName, () => App);" > index.js
           fi
 
-          if [ ! -f App.js ]; then
-            echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#121212'}}><Text style={{color:'#fff', fontSize:20}}>SeaChat Active!</Text></View> }" > App.js
+          # إنشاء app.json إذا كان مفقوداً لتعريف اسم التطبيق
+          if [ ! -f app.json ]; then
+            echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
           fi
 
-          # إجباري لمنع فشل الـ Bundler
-          echo "module.exports = { presets: ['module:@react-native/babel-preset'] };" > babel.config.js
+          # إنشاء App.js بسيط كاختبار إذا لم يوجد كود
+          if [ ! -f App.js ]; then
+            echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>SeaChat Ready!</Text></View> }" > App.js
+          fi
 
+          # إنشاء metro.config.js تلقائياً
           cat <<EOF > metro.config.js
           const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
           module.exports = mergeConfig(getDefaultConfig(__dirname), {});
           EOF
 
-      - name: Install Project Dependencies
+      - name: Install Dependencies (Fixed Versions)
         run: |
+          # تثبيت رياكت ورياكت ناتيف الأساسية
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
-          npm install @react-native/metro-config@0.74.5 @react-native/babel-preset@0.74.5 --save-dev --legacy-peer-deps
+          
+          # تثبيت أدوات البناء والميترو بدون تحديد إصدار تعجيزي يسبب خطأ ETARGET
+          npm install @react-native/metro-config @react-native/babel-preset --save-dev --legacy-peer-deps
+          
+          # تثبيت باقي مكتبات التطبيق المشهورة
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Scaffold Native Android Architecture
+      - name: Fix Android Environment
         run: |
-          # توليد بيئة أندرويد رسمية ومتوافقة مع إصدار 0.74.5 لمنع أخطاء التجميع
-          if [ ! -d android ]; then
-            mkdir -p android/app/src/main/res/drawable
-            mkdir -p android/app/src/main/assets
-            
-            cat <<EOF > android/settings.gradle
-            rootProject.name = 'SeaChat'
-            include ':app'
-            EOF
-          fi
-
-      - name: Setup Gradle Cache (Max Speed)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Inject Android Engine & Fix Conflicts
-        run: |
+          # التأكد من وجود مجلد android وإصلاح الخصائص
           mkdir -p android/app/src/main/assets
-          mkdir -p android/app/src/main/res/raw
-          mkdir -p android/app/src/main/res/values
-
-          # إجبار النظام على استخدام إصدارات موحدة تفادياً لـ androidx.core conflict
+          
+          # حقن استراتيجية حل النزاعات في ملف build.gradle الرئيسي لفرض مكتبات الأندرويد المستقرة
           if [ -f android/build.gradle ]; then
             sed -i '/allprojects {/a \    configurations.all { resolutionStrategy { force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" } }' android/build.gradle
           fi
 
-          # تخصيص الذاكرة القصوى للـ JVM لتسريع عملية الـ Compilation ومنع خطأ الذاكرة المستهلكة
+          # ضبط الذاكرة والـ SDK
           {
-            echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+            echo "org.gradle.jvmargs=-Xmx4096m"
             echo "android.useAndroidX=true"
             echo "android.enableJetifier=true"
             echo "hermesEnabled=true"
@@ -102,33 +78,25 @@ jobs:
           } > android/gradle.properties
           
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          
-          # مسح الأصول القديمة لمنع تكرار الموارد (Duplicate Resources Error)
-          rm -rf android/app/src/main/res/drawable-*
-          rm -rf android/app/src/main/res/raw
 
-      - name: Compile Production JS Assets Bundle
+      - name: Build JS Assets
         run: |
           npx react-native bundle \
             --platform android \
             --dev false \
             --entry-file index.js \
             --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/build/generated/res/react/release
+            --assets-dest android/app/src/main/res
 
-      - name: Turbo Build APK (No Signing)
+      - name: Finalize & Build APK
         working-directory: android
         run: |
-          if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version 8.7
-          fi
           chmod +x gradlew
-          # البناء السريع المباشر بصيغة Debug APK بدون توقيع ومناسب للتثبيت الفوري
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
 
-      - name: Upload Output APK
+      - name: Export APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Modern-APK
+          name: SeaChat-Full-Auto-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+
