@@ -50,6 +50,7 @@ jobs:
 
       - name: Extract Official Gradle Wrapper & Configure Build
         run: |
+          # 1. توليد مشروع مرجعي مؤقت لاستخراج ملفات التشغيل الرسمية
           yes | npx react-native@0.74.5 init TempApp --version 0.74.5 --skip-install --install-pods false
           
           mkdir -p android/gradle/wrapper
@@ -61,7 +62,7 @@ jobs:
           
           rm -rf TempApp
 
-          # كتابة ملف build.gradle مع إضافة مسار الـ node_modules داخل الـ buildscript لتغذية الـ classpath
+          # 2. كتابة ملف build.gradle ذكي يعتمد على التحديد التلقائي للمسار
           cat <<'EOF' > android/build.gradle
           buildscript {
               ext {
@@ -75,13 +76,12 @@ jobs:
               repositories { 
                   google()
                   mavenCentral() 
-                  // إخبار الجرادل بمكان البحث عن بلوجن الرياكت ناتيف محلياً
-                  maven { url "$rootDir/../node_modules/react-native/android" }
               }
               dependencies {
                   classpath("com.android.tools.build:gradle:8.2.1")
-                  classpath("com.facebook.react:react-native-gradle-plugin")
                   classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+                  // السحر هنا: قراءة البلوجن مباشرة من المسار الفعلي داخل السيرفر دون الاعتماد على مسار نسبي قد يضيع
+                  classpath(files("${rootProject.projectDir}/../node_modules/react-native/android/com/facebook/react/react-native-gradle-plugin/0.74.5/react-native-gradle-plugin-0.74.5.jar"))
               }
           }
 
@@ -89,7 +89,7 @@ jobs:
               repositories {
                   google()
                   mavenCentral()
-                  maven { url "$rootDir/../node_modules/react-native/android" }
+                  maven { url "${rootProject.projectDir}/../node_modules/react-native/android" }
               }
               configurations.all {
                   resolutionStrategy {
@@ -100,6 +100,7 @@ jobs:
           }
           EOF
 
+          # ضبط الخصائص والذاكرة
           {
             echo "org.gradle.jvmargs=-Xmx4096m"
             echo "android.useAndroidX=true"
@@ -131,3 +132,4 @@ jobs:
         with:
           name: SeaChat-Full-Auto-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
