@@ -23,81 +23,49 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Latest Dependencies
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Expo CLI
+        run: npm install -g @expo/cli
+
+      - name: Install Latest Libraries
         run: |
-          npm install @supabase/supabase-js@latest react-native-url-polyfill
-          npm install react-native-image-picker@latest react-native-audio-recorder-player@latest
-          npm install @react-native-async-storage/async-storage@latest
-          npm install react-native-vector-icons@latest
-          npm install react-native-fs@latest react-native-permissions@latest
+          npx expo install @supabase/supabase-js react-native-url-polyfill
+          npx expo install expo-image-picker expo-av expo-camera
+          npx expo install @react-native-async-storage/async-storage
+          npx expo install react-native-vector-icons
 
-      - name: Remove old android folder
-        run: rm -rf android ios
+      - name: Prebuild Android - Expo
+        run: npx expo prebuild --platform android --clean
 
-      - name: Generate Android folder only
-        run: npx @react-native-community/cli init SeaChatTemp --directory android_temp --skip-install
-        env:
-          CLI_ASK_PROMPTS: false
-
-      - name: Move android folder to root
-        run: mv android_temp/android ./android && rm -rf android_temp
-
-      - name: Fix package name
+      - name: Apply High Contrast Desert Theme + Permissions
         run: |
-          find ./android -type f -exec sed -i 's/com.seachattemp/com.seachat/g' {} +
-          find ./android -type f -exec sed -i 's/SeaChatTemp/SeaChat/g' {} +
-
-      - name: Generate Desert App Icon - High Contrast
-        run: |
-          mkdir -p android/app/src/main/res/mipmap-mdpi
-          mkdir -p android/app/src/main/res/mipmap-hdpi
-          mkdir -p android/app/src/main/res/mipmap-xhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxhdpi
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-          
-          sudo apt-get update && sudo apt-get install -y imagemagick
-          
-          cat > icon.svg << 'EOF'
-          <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="desert" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#FF6F00;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#BF360C;stop-opacity:1" />
-              </linearGradient>
-            </defs>
-            <rect width="512" height="512" rx="115" fill="url(#desert)"/>
-            <circle cx="256" cy="256" r="180" fill="#FFFFFF" opacity="0.95"/>
-            <path d="M156 336L256 236L356 336L306 286L256 336L206 286Z" fill="#BF360C"/>
-            <circle cx="256" cy="200" r="25" fill="#FF6F00"/>
-          </svg>
+          # الوان قوية واضحة
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/colors.xml << 'EOF'
+          <resources>
+              <color name="desert_orange">#FF6F00</color>
+              <color name="desert_red">#BF360C</color>
+              <color name="desert_dark">#3E2723</color>
+              <color name="desert_light">#FFF3E0</color>
+          </resources>
           EOF
           
-          convert -background none icon.svg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          convert -background none icon.svg -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          convert -background none icon.svg -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          convert -background none icon.svg -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          convert -background none icon.svg -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          
-          cp android/app/src/main/res/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-          cp android/app/src/main/res/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          cp android/app/src/main/res/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          cp android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-          cp android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-
-      - name: Add Permissions + Supabase
-        run: |
+          # الصلاحيات كاملة
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
               <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
               <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-              <uses-permission android:name="android.permission.CAMERA" />
-              <uses-permission android:name="android.permission.RECORD_AUDIO" />
-              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.VIBRATE" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -105,15 +73,11 @@ jobs:
                 android:name=".MainApplication"
                 android:label="@string/app_name"
                 android:icon="@mipmap/ic_launcher"
-                android:roundIcon="@mipmap/ic_launcher_round"
-                android:allowBackup="false"
                 android:theme="@style/AppTheme"
-                android:usesCleartextTraffic="true"
-                android:networkSecurityConfig="@xml/network_security_config">
+                android:usesCleartextTraffic="true">
                 <activity
                   android:name=".MainActivity"
-                  android:label="@string/app_name"
-                  android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+                  android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
                   android:launchMode="singleTask"
                   android:windowSoftInputMode="adjustResize"
                   android:exported="true">
@@ -126,126 +90,14 @@ jobs:
           </manifest>
           EOF
 
-          mkdir -p android/app/src/main/res/xml
-          cat > android/app/src/main/res/xml/network_security_config.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <network-security-config>
-              <domain-config cleartextTrafficPermitted="true">
-                  <domain includeSubdomains="true">supabase.co</domain>
-                  <domain includeSubdomains="true">supabase.in</domain>
-              </domain-config>
-          </network-security-config>
-          EOF
-
-      - name: Apply High Contrast Desert Theme
-        run: |
-          mkdir -p android/app/src/main/res/values
-          cat > android/app/src/main/res/values/colors.xml << 'EOF'
-          <resources>
-              <color name="desert_orange">#FF6F00</color>
-              <color name="desert_red">#BF360C</color>
-              <color name="desert_dark">#3E2723</color>
-              <color name="desert_light">#FFF3E0</color>
-              <color name="desert_white">#FFFFFF</color>
-              <color name="desert_black">#000000</color>
-          </resources>
-          EOF
-          
-          cat > android/app/src/main/res/values/styles.xml << 'EOF'
-          <resources>
-              <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-                  <item name="android:statusBarColor">@color/desert_red</item>
-                  <item name="android:navigationBarColor">@color/desert_dark</item>
-                  <item name="android:windowLightStatusBar">false</item>
-                  <item name="android:windowBackground">@color/desert_light</item>
-              </style>
-          </resources>
-          EOF
-
-      - name: Add Fonts + Colors JS
-        run: |
-          mkdir -p android/app/src/main/assets/fonts
-          curl -L -o android/app/src/main/assets/fonts/Cairo-Bold.ttf https://github.com/Gue3bara/Cairo/releases/download/v6.0.1/Cairo-Bold.ttf
-          curl -L -o android/app/src/main/assets/fonts/Cairo-Regular.ttf https://github.com/Gue3bara/Cairo/releases/download/v6.0.1/Cairo-Regular.ttf
-          
-          mkdir -p src
-          cat > src/colors.js << 'EOF'
-          // ثيم صحراوي واضح - تباين عالي للجوال
-          export const Colors = {
-            // الاساسيات - الوان قوية واضحة
-            primary: '#BF360C',        // احمر طيني قوي
-            primaryDark: '#3E2723',    // بني غامق جداً
-            secondary: '#FF6F00',      // برتقالي صحراوي فاقع
-            accent: '#FFAB00',         // اصفر رملي
-            
-            // الخلفيات
-            background: '#FFF3E0',     // بيج فاتح كلش - خلفية
-            surface: '#FFFFFF',        // ابيض ناصع - كروت
-            surfaceDark: '#3E2723',    // بني غامق - للوضع الليلي
-            
-            // النصوص - تباين عالي
-            text: '#000000',           // اسود ناصع
-            textOnPrimary: '#FFFFFF',  // ابيض على الاحمر
-            textSecondary: '#5D4037',  // بني متوسط
-            textLight: '#FFFFFF',      // ابيض
-            
-            // حالات واضحة
-            success: '#2E7D32',        // اخضر غامق
-            error: '#C62828',          // احمر غامق
-            warning: '#F57C00',        // برتقالي غامق
-            
-            // حدود
-            border: '#BF360C',         // احمر طيني للحدود
-            divider: '#E0E0E0',        // رمادي فاتح
-          };
-          
-          export const Fonts = {
-            arabic: 'Cairo-Bold',
-            arabicRegular: 'Cairo-Regular',
-          };
-          
-          // ستايلات جاهزة بتباين عالي
-          export const Theme = {
-            button: {
-              backgroundColor: Colors.primary,
-              color: Colors.textOnPrimary,
-              fontFamily: Fonts.arabic,
-            },
-            card: {
-              backgroundColor: Colors.surface,
-              borderColor: Colors.border,
-              borderWidth: 2,
-            },
-            header: {
-              backgroundColor: Colors.primaryDark,
-              color: Colors.textLight,
-              fontFamily: Fonts.arabic,
-            }
-          };
-          EOF
-          
-          cat > src/supabase.js << 'EOF'
-          import 'react-native-url-polyfill/auto';
-          import { createClient } from '@supabase/supabase-js';
-          import AsyncStorage from '@react-native-async-storage/async-storage';
-          
-          const supabaseUrl = 'https://YOUR-PROJECT.supabase.co';
-          const supabaseAnonKey = 'YOUR-ANON-KEY';
-          
-          export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
-            realtime: { params: { eventsPerSecond: 10 } },
-          });
-          EOF
-
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build Debug APK
+      - name: Build APK
         run: cd android && ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK-HighContrast
+          name: SeaChat-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
