@@ -1,4 +1,4 @@
-name: Build APK
+name: Build SeaChat APK
 
 on:
   workflow_dispatch:
@@ -8,37 +8,167 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # =========================
+      # Checkout Project
+      # =========================
       - name: Checkout
         uses: actions/checkout@v4
 
+      # =========================
+      # Node.js
+      # =========================
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup Java 17
+      # =========================
+      # Java 17
+      # =========================
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+      # =========================
+      # Clean Old Android
+      # =========================
+      - name: Remove old android folder
+        run: rm -rf android
 
-      - name: Create Android Folder
+      # =========================
+      # Install Core Dependencies
+      # =========================
+      - name: Install Dependencies
         run: |
-          npx react-native init TempApp
-          cp -r TempApp/android ./android
-          rm -rf TempApp
+          npm install --legacy-peer-deps
 
-      - name: Build Debug APK
+      # =========================
+      # Install Expo + Native Libraries
+      # =========================
+      - name: Install Expo Libraries
+        run: |
+          npm install expo expo-font expo-av expo-camera expo-image-picker react-native-url-polyfill @react-native-async-storage/async-storage @supabase/supabase-js --legacy-peer-deps
+
+      # =========================
+      # Create Expo Config
+      # =========================
+      - name: Create app.json
+        run: |
+          cat > app.json << 'EOF'
+          {
+            "expo": {
+              "name": "SeaChat",
+              "slug": "seachat",
+              "version": "1.0.0",
+              "orientation": "portrait",
+              "userInterfaceStyle": "light",
+              "assetBundlePatterns": ["**/*"],
+              "android": {
+                "package": "com.seachat.app",
+                "permissions": [
+                  "INTERNET",
+                  "CAMERA",
+                  "RECORD_AUDIO",
+                  "READ_MEDIA_IMAGES",
+                  "READ_MEDIA_VIDEO",
+                  "POST_NOTIFICATIONS"
+                ]
+              }
+            }
+          }
+          EOF
+
+      # =========================
+      # Fix Missing Folders
+      # =========================
+      - name: Create Required Folders
+        run: |
+          mkdir -p assets/fonts
+          mkdir -p src/hooks
+          mkdir -p src/constants
+
+      # =========================
+      # Download Cairo Font
+      # =========================
+      - name: Download Cairo Font
+        run: |
+          curl -L https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Regular.ttf -o assets/fonts/Cairo-Regular.ttf
+
+      # =========================
+      # Create Global Theme
+      # =========================
+      - name: Create Theme File
+        run: |
+          cat > src/constants/theme.js << 'EOF'
+          export const Colors = {
+            primary: '#BF360C',
+            secondary: '#FF6F00',
+            background: '#FFF3E0',
+            surface: '#FFFFFF',
+            text: '#1E1E1E'
+          };
+
+          export const Fonts = {
+            regular: 'Cairo-Regular'
+          };
+          EOF
+
+      # =========================
+      # Auto Fix useAuth Path
+      # =========================
+      - name: Fix Broken Imports
+        run: |
+          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -exec sed -i 's#./src/hooks/useAuth#./src/screens/hooks/useAuth.ts - Hook#g' {} +
+
+      # =========================
+      # Create Supabase Config
+      # =========================
+      - name: Create Supabase Config
+        run: |
+          cat > src/constants/supabase.js << 'EOF'
+          import 'react-native-url-polyfill/auto';
+          import AsyncStorage from '@react-native-async-storage/async-storage';
+          import { createClient } from '@supabase/supabase-js';
+
+          const supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
+          const supabaseAnonKey = 'YOUR_ANON_KEY';
+
+          export const supabase = createClient(
+            supabaseUrl,
+            supabaseAnonKey,
+            {
+              auth: {
+                storage: AsyncStorage,
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: false
+              }
+            }
+          );
+          EOF
+
+      # =========================
+      # Generate Android Folder
+      # =========================
+      - name: Generate Android
+        run: npx expo prebuild --platform android --clean
+
+      # =========================
+      # Build APK
+      # =========================
+      - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      # =========================
+      # Upload APK
+      # =========================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: SeaChat-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
