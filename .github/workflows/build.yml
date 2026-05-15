@@ -33,7 +33,7 @@ jobs:
           npm install react-native-audio-recorder-player@3.6.1 --legacy-peer-deps
           
           npm install react-native-permissions --legacy-peer-deps
-          npm install @react-native/masked-view/masked-view --legacy-peer-deps
+          npm install @react-native-masked-view/masked-view --legacy-peer-deps
           
           npm install @react-native-community/blur --legacy-peer-deps
           
@@ -137,3 +137,4 @@ jobs:
         with:
           name: SeaChat-Ultimate-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
