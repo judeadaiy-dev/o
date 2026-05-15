@@ -1,4 +1,4 @@
-name: Build SeaChat APK
+name: Build Android APK
 
 on:
   workflow_dispatch:
@@ -9,13 +9,13 @@ jobs:
 
     steps:
       # =========================
-      # Checkout Project
+      # Checkout
       # =========================
       - name: Checkout
         uses: actions/checkout@v4
 
       # =========================
-      # Node.js
+      # Node
       # =========================
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -23,7 +23,7 @@ jobs:
           node-version: 20
 
       # =========================
-      # Java 17
+      # Java
       # =========================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -32,27 +32,27 @@ jobs:
           java-version: 17
 
       # =========================
-      # Clean Old Android
+      # Remove old android
       # =========================
-      - name: Remove old android folder
+      - name: Clean Android
         run: rm -rf android
 
       # =========================
-      # Install Core Dependencies
+      # Install dependencies
       # =========================
       - name: Install Dependencies
         run: |
           npm install --legacy-peer-deps
 
       # =========================
-      # Install Expo + Native Libraries
+      # Install Mobile Libraries Only
       # =========================
-      - name: Install Expo Libraries
+      - name: Install Native Mobile Packages
         run: |
           npm install expo expo-font expo-av expo-camera expo-image-picker react-native-url-polyfill @react-native-async-storage/async-storage @supabase/supabase-js --legacy-peer-deps
 
       # =========================
-      # Create Expo Config
+      # Create Mobile Expo Config
       # =========================
       - name: Create app.json
         run: |
@@ -61,10 +61,8 @@ jobs:
             "expo": {
               "name": "SeaChat",
               "slug": "seachat",
-              "version": "1.0.0",
+              "platforms": ["android"],
               "orientation": "portrait",
-              "userInterfaceStyle": "light",
-              "assetBundlePatterns": ["**/*"],
               "android": {
                 "package": "com.seachat.app",
                 "permissions": [
@@ -81,33 +79,27 @@ jobs:
           EOF
 
       # =========================
-      # Fix Missing Folders
+      # Cairo Font
       # =========================
-      - name: Create Required Folders
+      - name: Setup Cairo Font
         run: |
           mkdir -p assets/fonts
-          mkdir -p src/hooks
-          mkdir -p src/constants
-
-      # =========================
-      # Download Cairo Font
-      # =========================
-      - name: Download Cairo Font
-        run: |
           curl -L https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Regular.ttf -o assets/fonts/Cairo-Regular.ttf
 
       # =========================
-      # Create Global Theme
+      # Create Theme
       # =========================
-      - name: Create Theme File
+      - name: Create Theme
         run: |
+          mkdir -p src/constants
+
           cat > src/constants/theme.js << 'EOF'
           export const Colors = {
             primary: '#BF360C',
             secondary: '#FF6F00',
             background: '#FFF3E0',
             surface: '#FFFFFF',
-            text: '#1E1E1E'
+            text: '#111111'
           };
 
           export const Fonts = {
@@ -116,17 +108,19 @@ jobs:
           EOF
 
       # =========================
-      # Auto Fix useAuth Path
+      # Auto Fix Broken Imports
       # =========================
-      - name: Fix Broken Imports
+      - name: Fix Imports
         run: |
-          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -exec sed -i 's#./src/hooks/useAuth#./src/screens/hooks/useAuth.ts - Hook#g' {} +
+          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -exec sed -i 's#./src/hooks/useAuth#./src/screens/hooks/useAuth.ts - Hook#g' {} + || true
 
       # =========================
-      # Create Supabase Config
+      # Supabase Config
       # =========================
       - name: Create Supabase Config
         run: |
+          mkdir -p src/constants
+
           cat > src/constants/supabase.js << 'EOF'
           import 'react-native-url-polyfill/auto';
           import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -150,13 +144,13 @@ jobs:
           EOF
 
       # =========================
-      # Generate Android Folder
+      # Generate Android Project
       # =========================
       - name: Generate Android
         run: npx expo prebuild --platform android --clean
 
       # =========================
-      # Build APK
+      # Build APK ONLY
       # =========================
       - name: Build APK
         run: |
