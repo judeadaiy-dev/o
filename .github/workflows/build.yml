@@ -2,8 +2,6 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build:
@@ -13,10 +11,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -27,26 +25,33 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Fix React Version Conflict
-        run: npm install react@19.2.3 react-dom@19.2.3 --legacy-peer-deps
+      - name: Install Expo
+        run: npm install expo@latest --legacy-peer-deps
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Install Expo CLI
-        run: npm install -g @expo/cli
-
-      - name: Install Latest Libraries
+      - name: Install Expo Libraries
         run: |
           npx expo install @supabase/supabase-js react-native-url-polyfill
           npx expo install expo-image-picker expo-av expo-camera
           npx expo install @react-native-async-storage/async-storage
 
-      - name: Prebuild Android Only
+      - name: Prebuild Android
         run: npx expo prebuild --platform android --clean
 
-      - name: Apply High Contrast Desert Theme + Permissions
+      - name: Apply Desert Theme + Permissions
         run: |
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/colors.xml << 'EOF'
+          <resources>
+              <color name="desert_orange">#FF6F00</color>
+              <color name="desert_red">#BF360C</color>
+              <color name="desert_dark">#3E2723</color>
+              <color name="desert_light">#FFF3E0</color>
+          </resources>
+          EOF
+          
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -68,7 +73,7 @@ jobs:
           </manifest>
           EOF
 
-      - name: Add Colors + Supabase
+      - name: Add Desert Colors
         run: |
           mkdir -p src
           cat > src/colors.js << 'EOF'
@@ -77,20 +82,11 @@ jobs:
             surface: '#FFFFFF', text: '#000000', textOnPrimary: '#FFFFFF',
           };
           EOF
-          
-          cat > src/supabase.js << 'EOF'
-          import 'react-native-url-polyfill/auto';
-          import { createClient } from '@supabase/supabase-js';
-          import AsyncStorage from '@react-native-async-storage/async-storage';
-          export const supabase = createClient('https://YOUR-PROJECT.supabase.co', 'YOUR-ANON-KEY', {
-            auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
-          });
-          EOF
 
-      - name: Build APK Only
+      - name: Build APK
         run: cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK Only
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
