@@ -27,8 +27,11 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Fix React Version Conflict
+        run: npm install react@19.2.3 react-dom@19.2.3 --legacy-peer-deps
+
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Install Expo CLI
         run: npm install -g @expo/cli
@@ -65,7 +68,7 @@ jobs:
           </manifest>
           EOF
 
-      - name: Add Fonts + Colors
+      - name: Add Colors + Supabase
         run: |
           mkdir -p src
           cat > src/colors.js << 'EOF'
@@ -73,6 +76,15 @@ jobs:
             primary: '#BF360C', secondary: '#FF6F00', background: '#FFF3E0', 
             surface: '#FFFFFF', text: '#000000', textOnPrimary: '#FFFFFF',
           };
+          EOF
+          
+          cat > src/supabase.js << 'EOF'
+          import 'react-native-url-polyfill/auto';
+          import { createClient } from '@supabase/supabase-js';
+          import AsyncStorage from '@react-native-async-storage/async-storage';
+          export const supabase = createClient('https://YOUR-PROJECT.supabase.co', 'YOUR-ANON-KEY', {
+            auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+          });
           EOF
 
       - name: Build APK Only
