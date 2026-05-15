@@ -2,6 +2,8 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
@@ -15,7 +17,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          # حذفت cache: 'npm' حتى ما يطلب package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -38,21 +39,11 @@ jobs:
           npx expo install expo-image-picker expo-av expo-camera
           npx expo install @react-native-async-storage/async-storage
 
-      - name: Prebuild Android - Expo
+      - name: Prebuild Android Only
         run: npx expo prebuild --platform android --clean
 
       - name: Apply High Contrast Desert Theme + Permissions
         run: |
-          mkdir -p android/app/src/main/res/values
-          cat > android/app/src/main/res/values/colors.xml << 'EOF'
-          <resources>
-              <color name="desert_orange">#FF6F00</color>
-              <color name="desert_red">#BF360C</color>
-              <color name="desert_dark">#3E2723</color>
-              <color name="desert_light">#FFF3E0</color>
-          </resources>
-          EOF
-          
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -63,15 +54,8 @@ jobs:
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
-              <application
-                android:name=".MainApplication"
-                android:label="@string/app_name"
-                android:icon="@mipmap/ic_launcher"
-                android:theme="@style/AppTheme"
-                android:usesCleartextTraffic="true">
-                <activity
-                  android:name=".MainActivity"
-                  android:exported="true">
+              <application android:usesCleartextTraffic="true">
+                <activity android:name=".MainActivity" android:exported="true">
                   <intent-filter>
                       <action android:name="android.intent.action.MAIN" />
                       <category android:name="android.intent.category.LAUNCHER" />
@@ -83,26 +67,18 @@ jobs:
 
       - name: Add Fonts + Colors
         run: |
-          mkdir -p android/app/src/main/assets/fonts
-          curl -L -o android/app/src/main/assets/fonts/Cairo-Bold.ttf https://github.com/Gue3bara/Cairo/releases/download/v6.0.1/Cairo-Bold.ttf
-          
           mkdir -p src
           cat > src/colors.js << 'EOF'
           export const Colors = {
-            primary: '#BF360C', secondary: '#FF6F00', accent: '#FFAB00',
-            background: '#FFF3E0', surface: '#FFFFFF', surfaceDark: '#3E2723',
-            text: '#000000', textOnPrimary: '#FFFFFF', textSecondary: '#5D4037',
+            primary: '#BF360C', secondary: '#FF6F00', background: '#FFF3E0', 
+            surface: '#FFFFFF', text: '#000000', textOnPrimary: '#FFFFFF',
           };
-          export const Fonts = { arabic: 'Cairo-Bold' };
           EOF
 
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
+      - name: Build APK Only
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 
-      - name: Build APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
-
-      - name: Upload APK
+      - name: Upload APK Only
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
