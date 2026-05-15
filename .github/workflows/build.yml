@@ -23,22 +23,18 @@ jobs:
 
       - name: Auto-Generate Missing Project Files
         run: |
-          # إنشاء index.js إذا كان مفقوداً
           if [ ! -f index.js ]; then
             echo "import {AppRegistry} from 'react-native'; import App from './App'; import {name as appName} from './app.json'; AppRegistry.registerComponent(appName, () => App);" > index.js
           fi
 
-          # إنشاء app.json إذا كان مفقوداً لتعريف اسم التطبيق
           if [ ! -f app.json ]; then
             echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
           fi
 
-          # إنشاء App.js بسيط كاختبار إذا لم يوجد كود
           if [ ! -f App.js ]; then
             echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>SeaChat Ready!</Text></View> }" > App.js
           fi
 
-          # إنشاء metro.config.js تلقائياً
           cat <<EOF > metro.config.js
           const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
           module.exports = mergeConfig(getDefaultConfig(__dirname), {});
@@ -52,17 +48,51 @@ jobs:
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Fix Android Environment & Generate Wrapper if Missing
+      - name: Fix Android Environment & Force Gradle 8.6
         run: |
-          # التأكد من وجود مجلد android ومجلد الأصول
           mkdir -p android/app/src/main/assets
           
-          # حقن استراتيجية حل النزاعات في ملف build.gradle الرئيسي لفرض مكتبات الأندرويد المستقرة
-          if [ -f android/build.gradle ]; then
-            sed -i '/allprojects {/a \    configurations.all { resolutionStrategy { force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" } }' android/build.gradle
-          fi
+          # إعادة كتابة الملف الرئيسي ليكون متوافقاً تماماً مع الطريقة الحديثة لتضمين البلوجنز
+          cat <<'EOF' > android/build.gradle
+          buildscript {
+              ext {
+                  buildToolsVersion = "34.0.0"
+                  minSdkVersion = 21
+                  compileSdkVersion = 34
+                  targetSdkVersion = 34
+                  ndkVersion = "26.1.10909125"
+                  kotlinVersion = "1.9.22"
+              }
+              repositories { 
+                  google()
+                  mavenCentral() 
+              }
+              dependencies {
+                  classpath("com.android.tools.build:gradle:8.2.1")
+                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+              }
+          }
 
-          # ضبط الذاكرة والـ SDK
+          plugins {
+              id("com.facebook.react") version "0.74.5" apply false
+          }
+
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+                  maven { url "$rootDir/../node_modules/react-native/android" }
+              }
+              configurations.all {
+                  resolutionStrategy {
+                      force "androidx.core:core:1.13.1"
+                      force "androidx.core:core-ktx:1.13.1"
+                  }
+              }
+          }
+          EOF
+
+          # ضبط الذاكرة والخصائص وتجنب تحذيرات الإصدارات
           {
             echo "org.gradle.jvmargs=-Xmx4096m"
             echo "android.useAndroidX=true"
@@ -74,12 +104,9 @@ jobs:
           
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-          # الحل الذكي: إذا كان ملف gradlew مفقوداً، نقوم بتوليده فوراً باستخدام جرادل النظام
+          # إجبار النظام على استخدام إصدار 8.6 حصراً بدلاً من الانتقال لـ 9.5
           cd android
-          if [ ! -f gradlew ]; then
-            echo "Gradlew missing! Generating a new one..."
-            gradle wrapper --gradle-version 8.6
-          fi
+          gradle wrapper --gradle-version 8.6 --distribution-type all
 
       - name: Build JS Assets
         run: |
