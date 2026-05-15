@@ -48,11 +48,23 @@ jobs:
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Fix Android Environment & Force Gradle 8.6
+      - name: Force Injection of Gradle 8.6 Files & Build Configuration
         run: |
+          mkdir -p android/gradle/wrapper
           mkdir -p android/app/src/main/assets
           
-          # إعادة كتابة الملف الرئيسي ليكون متوافقاً تماماً مع الطريقة الحديثة لتضمين البلوجنز
+          # تحميل الـ Wrapper الرسمي لإصدار 8.6 مباشرة بدون الاستعانة بجرادل السيرفر الحديث
+          curl -Lo android/gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.6.0/gradle/wrapper/gradle-wrapper.jar
+          
+          cat <<EOF > android/gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.6-all.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          # كتابة ملف build.gradle المتوافق تماماً مع الاستدعاء المحلي
           cat <<'EOF' > android/build.gradle
           buildscript {
               ext {
@@ -69,12 +81,9 @@ jobs:
               }
               dependencies {
                   classpath("com.android.tools.build:gradle:8.2.1")
+                  classpath("com.facebook.react:react-native-gradle-plugin")
                   classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
               }
-          }
-
-          plugins {
-              id("com.facebook.react") version "0.74.5" apply false
           }
 
           allprojects {
@@ -92,7 +101,7 @@ jobs:
           }
           EOF
 
-          # ضبط الذاكرة والخصائص وتجنب تحذيرات الإصدارات
+          # ضبط الخصائص والذاكرة
           {
             echo "org.gradle.jvmargs=-Xmx4096m"
             echo "android.useAndroidX=true"
@@ -103,10 +112,6 @@ jobs:
           } > android/gradle.properties
           
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-
-          # إجبار النظام على استخدام إصدار 8.6 حصراً بدلاً من الانتقال لـ 9.5
-          cd android
-          gradle wrapper --gradle-version 8.6 --distribution-type all
 
       - name: Build JS Assets
         run: |
@@ -120,6 +125,11 @@ jobs:
       - name: Finalize & Build APK
         working-directory: android
         run: |
+          # توليد الـ gradlew النصي المتوافق مع الـ jar الذي حملناه
+          cat <<'EOF' > gradlew
+          #!/usr/bin/env bash
+          exec java -jar gradle/wrapper/gradle-wrapper.jar "$@"
+          EOF
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
 
