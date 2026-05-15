@@ -23,7 +23,7 @@ jobs:
           node-version: 20
 
       # =========================
-      # 3. إعداد بيئة Java للهاتف
+      # 3. إعداد بيئة Java للأندرويد
       # =========================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -32,37 +32,46 @@ jobs:
           java-version: 17
 
       # =========================
-      # 4. تثبيت المكتبات البرمجية
+      # 4. تهيئة ملفات الـ Mobile ومحرك التجميع
       # =========================
-      - name: Install Dependencies
+      - name: Setup React Native Environment
         run: |
-          npm install --legacy-peer-deps
+          # تثبيت حزم الهاتف الأساسية لمنع البناء للويب
+          npm install react-native react-native-url-polyfill @react-native-async-storage/async-storage @supabase/supabase-js --legacy-peer-deps
+          npm install --save-dev @react-native/babel-preset @react-native-community/cli @react-native-community/cli-platform-android --legacy-peer-deps
+
+          # إنشاء ملف إعدادات المترجم (Metro) الخاص بالهواتف لمنع صفحات الويب
+          cat > metro.config.js << 'EOF'
+          const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+          const config = {};
+          module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+          EOF
+
+          # إنشاء ملف البناء (Babel)
+          cat > babel.config.js << 'EOF'
+          module.exports = {
+            presets: ['module:@react-native/babel-preset'],
+          };
+          EOF
 
       # =========================
-      # 5. تثبيت حزم الهاتف والاتصال
+      # 5. توليد مجلد أندرويد (Android Folder) الحقيقي
       # =========================
-      - name: Install Native Mobile Packages
+      - name: Generate True Android Folder
         run: |
-          npm install react-native-url-polyfill @react-native-async-storage/async-storage @supabase/supabase-js --legacy-peer-deps
-
-      # =========================
-      # 6. توليد مجلد أندرويد أصلي للمشروع
-      # =========================
-      - name: Generate Android Folder
-        run: |
-          npx @react-native-community/cli init SeaChat --template react-native-template-typescript --skip-install || true
-          if [ -d "SeaChat/android" ]; then
-            cp -r SeaChat/android ./android
-            cp SeaChat/package.json ./package.json.bak
-            rm -rf SeaChat
-          fi
-          # في حال فشل القالب، يتم توليد الهيكل الأساسي للأندرويد لضمان استمرار البناء
-          if [ ! -d "android" ]; then
+          # توليد المجلد الأصلي النظيف للهواتف عبر سكربت CLI مخصص
+          npx @react-native-community/cli init TemporaryApp --template react-native-template-typescript --skip-install || true
+          if [ -d "TemporaryApp/android" ]; then
+            cp -r TemporaryApp/android ./android
+            rm -rf TemporaryApp
+          else
+            # خيار بديل سريع في حال فشل القالب لضمان بناء المجلد بنجاح
+            mkdir -p android
             npx react-native android --package-name com.seachat.app || true
           fi
 
       # =========================
-      # 7. تثبيت خط القاهرة داخل مجلد الأندرويد
+      # 6. تثبيت خط القاهرة داخل الأندرويد الأصلي
       # =========================
       - name: Setup Cairo Font
         run: |
@@ -70,7 +79,7 @@ jobs:
           curl -L https://github.com -o android/app/src/main/assets/fonts/Cairo-Regular.ttf
 
       # =========================
-      # 8. إنشاء ملف الألوان والتصميم
+      # 7. إنشاء ملف التصميم والألوان
       # =========================
       - name: Create Theme
         run: |
@@ -89,14 +98,14 @@ jobs:
           EOF
 
       # =========================
-      # 9. إصلاح مسارات الاستيراد تلقائياً
+      # 8. إصلاح مسارات الاستيراد
       # =========================
       - name: Fix Imports
         run: |
           find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -exec sed -i 's|\./src/hooks/useAuth|\./src/screens/hooks/useAuth|g' {} + || true
 
       # =========================
-      # 10. إعداد قاعدة بيانات Supabase
+      # 9. إعداد اتصال Supabase للهاتف
       # =========================
       - name: Create Supabase Config
         run: |
@@ -124,19 +133,19 @@ jobs:
           EOF
 
       # =========================
-      # 11. ربط ملفات الـ Native وتجميع حزمة الـ APK
+      # 10. تجميع وبناء ملف الـ APK الأصلي
       # =========================
-      - name: Build APK
+      - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
       # =========================
-      # 12. رفع ملف الـ APK لتنزيله فوراً
+      # 11. رفع ملف الـ APK لتنزيله وتجربته فوراً
       # =========================
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK
+          name: SeaChat-Native-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
