@@ -41,8 +41,7 @@ jobs:
 
       - name: One-Command Android Generation
         run: |
-          npx react-native ctx-bootstrap || true
-          yes | npx react-native eject || npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --install-pods false
+          yes | npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --install-pods false
           
           if [ -d SeaChatTemp/android ]; then
             rm -rf android
@@ -88,6 +87,16 @@ jobs:
                           force 'androidx.core:core:1.13.1'
                           force 'androidx.core:core-ktx:1.13.1'
                       }
+                  }
+                  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                      kotlinOptions {
+                          jvmTarget = "17"
+                      }
+                  }
+                  tasks.withType(JavaCompile) {
+                      options.compilerArgs << "-Xlint:none" << "-nowarn"
+                      sourceCompatibility = JavaVersion.VERSION_17
+                      targetCompatibility = JavaVersion.VERSION_17
                   }
               }
           }
@@ -137,4 +146,3 @@ jobs:
         with:
           name: SeaChat-Ultimate-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
