@@ -45,12 +45,12 @@ jobs:
         run: |
           mkdir -p android/app/src/main/assets
           
-          # تعديل ملف build.gradle الرئيسي لفرض نسخة androidx.core المستقرة (1.13.1) على جميع المشاريع الفرعية والمكتبات
+          # كتابة build.gradle مع رفع الـ minSdkVersion إلى 23 لحل تعارض الـ Manifest تماماً
           cat <<'EOF' > android/build.gradle
           buildscript {
               ext {
                   buildToolsVersion = "34.0.0"
-                  minSdkVersion = 21
+                  minSdkVersion = 23
                   compileSdkVersion = 34
                   targetSdkVersion = 34
                   ndkVersion = "26.1.10909125"
@@ -73,7 +73,6 @@ jobs:
                   mavenCentral()
                   maven { url "$rootDir/../node_modules/react-native/android" }
               }
-              // حقن استراتيجية فرض النسخ القديمة لكسر عناد تحديث 1.16.0
               subprojects {
                   project.configurations.all {
                       resolutionStrategy {
@@ -129,4 +128,3 @@ jobs:
         with:
           name: SeaChat-Clean-Auto-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
