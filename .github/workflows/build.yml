@@ -46,20 +46,15 @@ jobs:
 
       - name: Install Dependencies (Fixed Versions)
         run: |
-          # تثبيت رياكت ورياكت ناتيف الأساسية
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
-          
-          # تثبيت أدوات البناء والميترو بدون تحديد إصدار تعجيزي يسبب خطأ ETARGET
           npm install @react-native/metro-config @react-native/babel-preset --save-dev --legacy-peer-deps
-          
-          # تثبيت باقي مكتبات التطبيق المشهورة
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Fix Android Environment
+      - name: Fix Android Environment & Generate Wrapper if Missing
         run: |
-          # التأكد من وجود مجلد android وإصلاح الخصائص
+          # التأكد من وجود مجلد android ومجلد الأصول
           mkdir -p android/app/src/main/assets
           
           # حقن استراتيجية حل النزاعات في ملف build.gradle الرئيسي لفرض مكتبات الأندرويد المستقرة
@@ -78,6 +73,13 @@ jobs:
           } > android/gradle.properties
           
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
+          # الحل الذكي: إذا كان ملف gradlew مفقوداً، نقوم بتوليده فوراً باستخدام جرادل النظام
+          cd android
+          if [ ! -f gradlew ]; then
+            echo "Gradlew missing! Generating a new one..."
+            gradle wrapper --gradle-version 8.6
+          fi
 
       - name: Build JS Assets
         run: |
@@ -99,4 +101,3 @@ jobs:
         with:
           name: SeaChat-Full-Auto-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
