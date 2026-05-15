@@ -1,4 +1,4 @@
-name: Build SeaChat Auto-Complete
+name: Build SeaChat Clean Automatic
 on:
   push:
     branches:
@@ -21,86 +21,37 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Auto-Generate Missing Project Files
+      - name: Install Project Packages
         run: |
-          if [ ! -f index.js ]; then
-            echo "import {AppRegistry} from 'react-native'; import App from './App'; import {name as appName} from './app.json'; AppRegistry.registerComponent(appName, () => App);" > index.js
-          fi
-
-          if [ ! -f app.json ]; then
-            echo '{"name": "SeaChat", "displayName": "SeaChat"}' > app.json
-          fi
-
-          if [ ! -f App.js ]; then
-            echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>SeaChat Ready!</Text></View> }" > App.js
-          fi
-
-          cat <<EOF > metro.config.js
-          const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-          module.exports = mergeConfig(getDefaultConfig(__dirname), {});
-          EOF
-
-      - name: Install Dependencies (Fixed Versions)
-        run: |
+          # 1. تثبيت الحزم والمكتبات التي يستند عليها مشروعك بالكامل
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install @react-native/metro-config @react-native/babel-preset --save-dev --legacy-peer-deps
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: Extract Official Gradle Wrapper & Configure Build
+      - name: One-Command Android Generation (الحل النهائي)
         run: |
-          # 1. توليد مشروع مرجعي مؤقت لاستخراج ملفات التشغيل الرسمية
-          yes | npx react-native@0.74.5 init TempApp --version 0.74.5 --skip-install --install-pods false
+          # 2. توليد مجلد أندرويد كامل ورسمي متوافق 100% مع الإصدار المستهدف
+          npx react-native ctx-bootstrap || true
+          yes | npx react-native eject || npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --install-pods false
           
-          mkdir -p android/gradle/wrapper
+          # إذا تم التوليد عبر المجلد المؤقت، ننقل ملف الأندرويد النظيف فوراً للمسار الرئيسي
+          if [ -d SeaChatTemp/android ]; then
+            rm -rf android
+            mv SeaChatTemp/android ./
+            mv SeaChatTemp/app.json ./
+            rm -rf SeaChatTemp
+          fi
+
+      - name: Inject Resolution Strategy & Configurations
+        run: |
+          # 3. تهيئة بيئة الأندرويد الناتجة لمنع النزاعات وضبط الذاكرة تلقائياً
           mkdir -p android/app/src/main/assets
           
-          cp TempApp/android/gradlew android/
-          cp TempApp/android/gradle/wrapper/gradle-wrapper.jar android/gradle/wrapper/
-          cp TempApp/android/gradle/wrapper/gradle-wrapper.properties android/gradle/wrapper/
+          # فرض إصدارات أندرويد المستقرة داخل ملف الجرادل الذي تم توليده فوراً
+          sed -i '/allprojects {/a \    configurations.all { resolutionStrategy { force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" } }' android/build.gradle
           
-          rm -rf TempApp
-
-          # 2. كتابة ملف build.gradle ذكي يعتمد على التحديد التلقائي للمسار
-          cat <<'EOF' > android/build.gradle
-          buildscript {
-              ext {
-                  buildToolsVersion = "34.0.0"
-                  minSdkVersion = 21
-                  compileSdkVersion = 34
-                  targetSdkVersion = 34
-                  ndkVersion = "26.1.10909125"
-                  kotlinVersion = "1.9.22"
-              }
-              repositories { 
-                  google()
-                  mavenCentral() 
-              }
-              dependencies {
-                  classpath("com.android.tools.build:gradle:8.2.1")
-                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-                  // السحر هنا: قراءة البلوجن مباشرة من المسار الفعلي داخل السيرفر دون الاعتماد على مسار نسبي قد يضيع
-                  classpath(files("${rootProject.projectDir}/../node_modules/react-native/android/com/facebook/react/react-native-gradle-plugin/0.74.5/react-native-gradle-plugin-0.74.5.jar"))
-              }
-          }
-
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-                  maven { url "${rootProject.projectDir}/../node_modules/react-native/android" }
-              }
-              configurations.all {
-                  resolutionStrategy {
-                      force "androidx.core:core:1.13.1"
-                      force "androidx.core:core-ktx:1.13.1"
-                  }
-              }
-          }
-          EOF
-
-          # ضبط الخصائص والذاكرة
           {
             echo "org.gradle.jvmargs=-Xmx4096m"
             echo "android.useAndroidX=true"
@@ -112,8 +63,22 @@ jobs:
           
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-      - name: Build JS Assets
+      - name: Build JS Assets Bundle
         run: |
+          # 4. تجميع ملفات الجافا سكريبت داخل المجلد الجديد
+          cat <<EOF > metro.config.js
+          const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
+          module.exports = mergeConfig(getDefaultConfig(__dirname), {});
+          EOF
+          
+          if [ ! -f index.js ]; then
+            echo "import {AppRegistry} from 'react-native'; import App from './App'; AppRegistry.registerComponent('SeaChat', () => App);" > index.js
+          fi
+          
+          if [ ! -f App.js ]; then
+            echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>SeaChat Ready!</Text></View> }" > App.js
+          fi
+
           npx react-native bundle \
             --platform android \
             --dev false \
@@ -121,15 +86,16 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
-      - name: Finalize & Build APK
+      - name: Compile and Build Final APK
         working-directory: android
         run: |
+          # 5. تشغيل أمر البناء النهائي للـ APK النظيف
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
 
       - name: Export APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Full-Auto-Build
+          name: SeaChat-Clean-Auto-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
