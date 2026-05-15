@@ -23,20 +23,17 @@ jobs:
 
       - name: Install Project Packages
         run: |
-          # 1. تثبيت الحزم والمكتبات التي يستند عليها مشروعك بالكامل
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install @react-native/metro-config @react-native/babel-preset --save-dev --legacy-peer-deps
           npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs --legacy-peer-deps
           npm install react-native-screens react-native-safe-area-context react-native-paper react-native-vector-icons --legacy-peer-deps
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
-      - name: One-Command Android Generation (الحل النهائي)
+      - name: One-Command Android Generation
         run: |
-          # 2. توليد مجلد أندرويد كامل ورسمي متوافق 100% مع الإصدار المستهدف
           npx react-native ctx-bootstrap || true
           yes | npx react-native eject || npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --install-pods false
           
-          # إذا تم التوليد عبر المجلد المؤقت، ننقل ملف الأندرويد النظيف فوراً للمسار الرئيسي
           if [ -d SeaChatTemp/android ]; then
             rm -rf android
             mv SeaChatTemp/android ./
@@ -46,11 +43,47 @@ jobs:
 
       - name: Inject Resolution Strategy & Configurations
         run: |
-          # 3. تهيئة بيئة الأندرويد الناتجة لمنع النزاعات وضبط الذاكرة تلقائياً
           mkdir -p android/app/src/main/assets
           
-          # فرض إصدارات أندرويد المستقرة داخل ملف الجرادل الذي تم توليده فوراً
-          sed -i '/allprojects {/a \    configurations.all { resolutionStrategy { force "androidx.core:core:1.13.1", "androidx.core:core-ktx:1.13.1" } }' android/build.gradle
+          # تعديل ملف build.gradle الرئيسي لفرض نسخة androidx.core المستقرة (1.13.1) على جميع المشاريع الفرعية والمكتبات
+          cat <<'EOF' > android/build.gradle
+          buildscript {
+              ext {
+                  buildToolsVersion = "34.0.0"
+                  minSdkVersion = 21
+                  compileSdkVersion = 34
+                  targetSdkVersion = 34
+                  ndkVersion = "26.1.10909125"
+                  kotlinVersion = "1.9.22"
+              }
+              repositories { 
+                  google()
+                  mavenCentral() 
+              }
+              dependencies {
+                  classpath("com.android.tools.build:gradle:8.2.1")
+                  classpath("com.facebook.react:react-native-gradle-plugin")
+                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+              }
+          }
+
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+                  maven { url "$rootDir/../node_modules/react-native/android" }
+              }
+              // حقن استراتيجية فرض النسخ القديمة لكسر عناد تحديث 1.16.0
+              subprojects {
+                  project.configurations.all {
+                      resolutionStrategy {
+                          force 'androidx.core:core:1.13.1'
+                          force 'androidx.core:core-ktx:1.13.1'
+                      }
+                  }
+              }
+          }
+          EOF
           
           {
             echo "org.gradle.jvmargs=-Xmx4096m"
@@ -65,7 +98,6 @@ jobs:
 
       - name: Build JS Assets Bundle
         run: |
-          # 4. تجميع ملفات الجافا سكريبت داخل المجلد الجديد
           cat <<EOF > metro.config.js
           const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
           module.exports = mergeConfig(getDefaultConfig(__dirname), {});
@@ -89,7 +121,6 @@ jobs:
       - name: Compile and Build Final APK
         working-directory: android
         run: |
-          # 5. تشغيل أمر البناء النهائي للـ APK النظيف
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
 
