@@ -21,173 +21,22 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install All Project Packages (صوت مستقر + إشعارات + زجاج)
+      - name: Install All Project Packages
         run: |
-          # 1. النواة الأساسية المستقرة
           npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
           npm install @react-native/metro-config @react-native/babel-preset --save-dev --legacy-peer-deps
           
-          # 2. حزم الواجهات والتنقل وحل عقدة الـ Gesture Handler
           npm install react-native-gesture-handler@2.16.1 --legacy-peer-deps
           npm install @react-navigation/native@6.1.17 @react-navigation/native-stack@6.9.26 @react-navigation/bottom-tabs@6.5.20 --legacy-peer-deps
           npm install react-native-screens@3.31.1 react-native-safe-area-context@4.10.1 react-native-paper react-native-vector-icons --legacy-peer-deps
           
-          # 3. حل العقدة: تثبيت إصدار مستقر من محرك الصوت يعتمد على المعمارية القياسية
           npm install react-native-audio-recorder-player@3.6.1 --legacy-peer-deps
           
-          # 4. حقن نظام إدارة التصريحات والإشعارات (الكاميرا، الصوت، التنبيهات)
           npm install react-native-permissions --legacy-peer-deps
           npm install @react-native/masked-view/masked-view --legacy-peer-deps
           
-          # 5. حقن تأثيرات الضباب الحقيقية للتصاميم الزجاجية (Glassmorphism)
           npm install @react-native-community/blur --legacy-peer-deps
           
-          # 6. قاعدة البيانات والرسائل المباشرة (Supabase)
-          npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
-
-      - name: One-Command Android Generation
-        run: |
-          npx react-native ctx-bootstrap || true
-          yes | npx react-native eject || npx react-native@0.74.5 init SeaChatTemp --version 0.74.5 --skip-install --install-pods false
-          
-          if [ -d SeaChatTemp/android ]; then
-            rm -rf android
-            mv SeaChatTemp/android ./
-            mv SeaChatTemp/app.json ./
-            rm -rf SeaChatTemp
-          fi
-
-      - name: Inject Resolution Strategy & Build Constraints
-        run: |
-          mkdir -p android/app/src/main/assets
-          
-          cat <<'EOF' > android/build.gradle
-          buildscript {
-              ext {
-                  buildToolsVersion = "34.0.0"
-                  minSdkVersion = 23
-                  compileSdkVersion = 34
-                  targetSdkVersion = 34
-                  ndkVersion = "26.1.10909125"
-                  kotlinVersion = "1.9.22"
-              }
-              repositories { 
-                  google()
-                  mavenCentral() 
-              }
-              dependencies {
-                  classpath("com.android.tools.build:gradle:8.2.1")
-                  classpath("com.facebook.react:react-native-gradle-plugin")
-                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-              }
-          }
-
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-                  maven { url "$rootDir/../node_modules/react-native/android" }
-              }
-              subprojects {
-                  project.configurations.all {
-                      resolutionStrategy {
-                          force 'androidx.core:core:1.13.1'
-                          force 'androidx.core:core-ktx:1.13.1'
-                      }
-                  }
-              }
-          }
-          EOF
-          
-          {
-            echo "org.gradle.jvmargs=-Xmx4096m"
-            echo "android.useAndroidX=true"
-            echo "android.enableJetifier=true"
-            echo "hermesEnabled=true"
-            echo "newArchEnabled=false"
-            echo "android.suppressUnsupportedCompileSdk=35"
-          } > android/gradle.properties
-          
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-
-      - name: Build JS Assets Bundle
-        run: |
-          cat <<EOF > metro.config.js
-          const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-          module.exports = mergeConfig(getDefaultConfig(__dirname), {});
-          EOF
-          
-          if [ ! -f index.js ]; then
-            echo "import {AppRegistry} from 'react-native'; import App from './App'; AppRegistry.registerComponent('SeaChat', () => App);" > index.js
-          fi
-          
-          if [ ! -f App.js ]; then
-            echo "import React from 'react'; import {View, Text} from 'react-native'; export default function App() { return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>SeaChat Full Engine Ready!</Text></View> }" > App.js
-          fi
-
-          npx react-native bundle \
-            --platform android \
-            --dev false \
-            --entry-file index.js \
-            --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
-
-      - name: Compile and Build Ultimate APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m"
-
-      - name: Export APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Ultimate-Build
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-name: Build SeaChat Ultimate All-In-One
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Java & Node
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install All Project Packages (صوت مستقر + إشعارات + زجاج)
-        run: |
-          # 1. النواة الأساسية المستقرة
-          npm install react-native@0.74.5 react@18.2.0 --legacy-peer-deps
-          npm install @react-native/metro-config @react-native/babel-preset --save-dev --legacy-peer-deps
-          
-          # 2. حزم الواجهات والتنقل وحل عقدة الـ Gesture Handler
-          npm install react-native-gesture-handler@2.16.1 --legacy-peer-deps
-          npm install @react-navigation/native@6.1.17 @react-navigation/native-stack@6.9.26 @react-navigation/bottom-tabs@6.5.20 --legacy-peer-deps
-          npm install react-native-screens@3.31.1 react-native-safe-area-context@4.10.1 react-native-paper react-native-vector-icons --legacy-peer-deps
-          
-          # 3. حل العقدة: تثبيت إصدار مستقر من محرك الصوت يعتمد على المعمارية القياسية
-          npm install react-native-audio-recorder-player@3.6.1 --legacy-peer-deps
-          
-          # 4. حقن نظام إدارة التصريحات والإشعارات (الكاميرا، الصوت، التنبيهات)
-          npm install react-native-permissions --legacy-peer-deps
-          npm install @react-native/masked-view/masked-view --legacy-peer-deps
-          
-          # 5. حقن تأثيرات الضباب الحقيقية للتصاميم الزجاجية (Glassmorphism)
-          npm install @react-native-community/blur --legacy-peer-deps
-          
-          # 6. قاعدة البيانات والرسائل المباشرة (Supabase)
           npm install @supabase/supabase-js react-native-url-polyfill --legacy-peer-deps
 
       - name: One-Command Android Generation
