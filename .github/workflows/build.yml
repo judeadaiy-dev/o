@@ -1,8 +1,6 @@
 name: Build Android APK
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -17,7 +15,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          # حذفت cache: 'npm' حتى ما يطلب package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -39,14 +37,12 @@ jobs:
           npx expo install @supabase/supabase-js react-native-url-polyfill
           npx expo install expo-image-picker expo-av expo-camera
           npx expo install @react-native-async-storage/async-storage
-          npx expo install react-native-vector-icons
 
       - name: Prebuild Android - Expo
         run: npx expo prebuild --platform android --clean
 
       - name: Apply High Contrast Desert Theme + Permissions
         run: |
-          # الوان قوية واضحة
           mkdir -p android/app/src/main/res/values
           cat > android/app/src/main/res/values/colors.xml << 'EOF'
           <resources>
@@ -57,19 +53,15 @@ jobs:
           </resources>
           EOF
           
-          # الصلاحيات كاملة
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
               <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
               <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-              <uses-permission android:name="android.permission.VIBRATE" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
               <application
                 android:name=".MainApplication"
@@ -79,9 +71,6 @@ jobs:
                 android:usesCleartextTraffic="true">
                 <activity
                   android:name=".MainActivity"
-                  android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
-                  android:launchMode="singleTask"
-                  android:windowSoftInputMode="adjustResize"
                   android:exported="true">
                   <intent-filter>
                       <action android:name="android.intent.action.MAIN" />
@@ -90,6 +79,21 @@ jobs:
                 </activity>
               </application>
           </manifest>
+          EOF
+
+      - name: Add Fonts + Colors
+        run: |
+          mkdir -p android/app/src/main/assets/fonts
+          curl -L -o android/app/src/main/assets/fonts/Cairo-Bold.ttf https://github.com/Gue3bara/Cairo/releases/download/v6.0.1/Cairo-Bold.ttf
+          
+          mkdir -p src
+          cat > src/colors.js << 'EOF'
+          export const Colors = {
+            primary: '#BF360C', secondary: '#FF6F00', accent: '#FFAB00',
+            background: '#FFF3E0', surface: '#FFFFFF', surfaceDark: '#3E2723',
+            text: '#000000', textOnPrimary: '#FFFFFF', textSecondary: '#5D4037',
+          };
+          export const Fonts = { arabic: 'Cairo-Bold' };
           EOF
 
       - name: Make gradlew executable
