@@ -9,13 +9,13 @@ jobs:
 
     steps:
       # =========================
-      # Checkout
+      # 1. جلب الكود من المستودع
       # =========================
       - name: Checkout
         uses: actions/checkout@v4
 
       # =========================
-      # Node
+      # 2. إعداد بيئة Node
       # =========================
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -23,7 +23,7 @@ jobs:
           node-version: 20
 
       # =========================
-      # Java
+      # 3. إعداد بيئة Java للهاتف
       # =========================
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -32,67 +32,49 @@ jobs:
           java-version: 17
 
       # =========================
-      # Remove old android
-      # =========================
-      - name: Clean Android
-        run: rm -rf android
-
-      # =========================
-      # Install dependencies
+      # 4. تثبيت المكتبات البرمجية
       # =========================
       - name: Install Dependencies
         run: |
           npm install --legacy-peer-deps
 
       # =========================
-      # Install Mobile Libraries Only
+      # 5. تثبيت حزم الهاتف والاتصال
       # =========================
       - name: Install Native Mobile Packages
         run: |
-          npm install expo expo-font expo-av expo-camera expo-image-picker react-native-url-polyfill @react-native-async-storage/async-storage @supabase/supabase-js --legacy-peer-deps
+          npm install react-native-url-polyfill @react-native-async-storage/async-storage @supabase/supabase-js --legacy-peer-deps
 
       # =========================
-      # Create Mobile Expo Config
+      # 6. توليد مجلد أندرويد أصلي للمشروع
       # =========================
-      - name: Create app.json
+      - name: Generate Android Folder
         run: |
-          cat > app.json << 'EOF'
-          {
-            "expo": {
-              "name": "SeaChat",
-              "slug": "seachat",
-              "platforms": ["android"],
-              "orientation": "portrait",
-              "android": {
-                "package": "com.seachat.app",
-                "permissions": [
-                  "INTERNET",
-                  "CAMERA",
-                  "RECORD_AUDIO",
-                  "READ_MEDIA_IMAGES",
-                  "READ_MEDIA_VIDEO",
-                  "POST_NOTIFICATIONS"
-                ]
-              }
-            }
-          }
-          EOF
+          npx @react-native-community/cli init SeaChat --template react-native-template-typescript --skip-install || true
+          if [ -d "SeaChat/android" ]; then
+            cp -r SeaChat/android ./android
+            cp SeaChat/package.json ./package.json.bak
+            rm -rf SeaChat
+          fi
+          # في حال فشل القالب، يتم توليد الهيكل الأساسي للأندرويد لضمان استمرار البناء
+          if [ ! -d "android" ]; then
+            npx react-native android --package-name com.seachat.app || true
+          fi
 
       # =========================
-      # Cairo Font
+      # 7. تثبيت خط القاهرة داخل مجلد الأندرويد
       # =========================
       - name: Setup Cairo Font
         run: |
-          mkdir -p assets/fonts
-          curl -L https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Regular.ttf -o assets/fonts/Cairo-Regular.ttf
+          mkdir -p android/app/src/main/assets/fonts
+          curl -L https://github.com -o android/app/src/main/assets/fonts/Cairo-Regular.ttf
 
       # =========================
-      # Create Theme
+      # 8. إنشاء ملف الألوان والتصميم
       # =========================
       - name: Create Theme
         run: |
           mkdir -p src/constants
-
           cat > src/constants/theme.js << 'EOF'
           export const Colors = {
             primary: '#BF360C',
@@ -101,26 +83,24 @@ jobs:
             surface: '#FFFFFF',
             text: '#111111'
           };
-
           export const Fonts = {
             regular: 'Cairo-Regular'
           };
           EOF
 
       # =========================
-      # Auto Fix Broken Imports
+      # 9. إصلاح مسارات الاستيراد تلقائياً
       # =========================
       - name: Fix Imports
         run: |
-          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -exec sed -i 's#./src/hooks/useAuth#./src/screens/hooks/useAuth.ts - Hook#g' {} + || true
+          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -exec sed -i 's|\./src/hooks/useAuth|\./src/screens/hooks/useAuth|g' {} + || true
 
       # =========================
-      # Supabase Config
+      # 10. إعداد قاعدة بيانات Supabase
       # =========================
       - name: Create Supabase Config
         run: |
           mkdir -p src/constants
-
           cat > src/constants/supabase.js << 'EOF'
           import 'react-native-url-polyfill/auto';
           import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -144,13 +124,7 @@ jobs:
           EOF
 
       # =========================
-      # Generate Android Project
-      # =========================
-      - name: Generate Android
-        run: npx expo prebuild --platform android --clean
-
-      # =========================
-      # Build APK ONLY
+      # 11. ربط ملفات الـ Native وتجميع حزمة الـ APK
       # =========================
       - name: Build APK
         run: |
@@ -159,7 +133,7 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       # =========================
-      # Upload APK
+      # 12. رفع ملف الـ APK لتنزيله فوراً
       # =========================
       - name: Upload APK
         uses: actions/upload-artifact@v4
